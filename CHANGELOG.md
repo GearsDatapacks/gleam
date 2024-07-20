@@ -10,6 +10,27 @@
 
 ### Language Server
 
+- The language server can now suggest a code action to import modules
+  for existing code which references unimported modules:
+
+  ```gleam
+  pub fn main() {
+    io.println("Hello, world!")
+  }
+  ```
+
+  Becomes:
+
+  ```gleam
+  import gleam/io
+
+  pub fn main() {
+    io.println("Hello, world!")
+  }
+  ```
+
+  ([Surya Rose](https://github.com/gearsdatapacks))
+
 ### Bug Fixes
 
 - Fixed a bug which caused the language server and compiler to crash when

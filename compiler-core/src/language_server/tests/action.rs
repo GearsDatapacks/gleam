@@ -1123,6 +1123,26 @@ pub fn main() {
     );
 }
 
+fn test_import_module() {
+    assert_code_action!(
+        "Import result",
+        r#"pub fn main() {
+        result.is_ok()
+    }"#,
+        find_position_of("result").select_until(find_position_of("."))
+    );
+}
+
+fn test_import_path_module() {
+    assert_code_action!(
+        "import gleam/io",
+        r#"pub fn main() {
+    io.println("Hello, world!")
+}"#,
+        find_position_of("io").select_until(find_position_of("."))
+    );
+}
+
 /* TODO: implement qualified unused location
 #[test]
 fn test_remove_unused_qualified_action() {
