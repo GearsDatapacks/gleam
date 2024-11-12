@@ -331,6 +331,7 @@ impl<'a> ModuleEncoder<'a> {
                 implementations,
                 external_erlang,
                 external_javascript,
+                external_mcfunction,
             } => {
                 let mut builder = builder.init_module_fn();
                 builder.set_name(name);
@@ -341,6 +342,10 @@ impl<'a> ModuleEncoder<'a> {
                 self.build_external(
                     builder.reborrow().init_external_javascript(),
                     external_javascript,
+                );
+                self.build_external(
+                    builder.reborrow().init_external_mcfunction(),
+                    external_mcfunction,
                 );
                 self.build_optional_field_map(builder.reborrow().init_field_map(), field_map);
                 self.build_src_span(builder.reborrow().init_location(), *location);
@@ -582,8 +587,10 @@ impl<'a> ModuleEncoder<'a> {
         builder.set_gleam(implementations.gleam);
         builder.set_uses_erlang_externals(implementations.uses_erlang_externals);
         builder.set_uses_javascript_externals(implementations.uses_javascript_externals);
+        builder.set_uses_mcfunction_externals(implementations.uses_mcfunction_externals);
         builder.set_can_run_on_erlang(implementations.can_run_on_erlang);
         builder.set_can_run_on_javascript(implementations.can_run_on_javascript);
+        builder.set_can_run_on_mcfunction(implementations.can_run_on_mcfunction);
     }
 
     fn build_external(

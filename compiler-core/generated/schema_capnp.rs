@@ -3431,12 +3431,20 @@ pub mod implementations {
       self.reader.get_bool_field(2)
     }
     #[inline]
-    pub fn get_can_run_on_erlang(self) -> bool {
+    pub fn get_uses_mcfunction_externals(self) -> bool {
       self.reader.get_bool_field(3)
     }
     #[inline]
-    pub fn get_can_run_on_javascript(self) -> bool {
+    pub fn get_can_run_on_erlang(self) -> bool {
       self.reader.get_bool_field(4)
+    }
+    #[inline]
+    pub fn get_can_run_on_javascript(self) -> bool {
+      self.reader.get_bool_field(5)
+    }
+    #[inline]
+    pub fn get_can_run_on_mcfunction(self) -> bool {
+      self.reader.get_bool_field(6)
     }
   }
 
@@ -3513,20 +3521,36 @@ pub mod implementations {
       self.builder.set_bool_field(2, value);
     }
     #[inline]
-    pub fn get_can_run_on_erlang(self) -> bool {
+    pub fn get_uses_mcfunction_externals(self) -> bool {
       self.builder.get_bool_field(3)
     }
     #[inline]
-    pub fn set_can_run_on_erlang(&mut self, value: bool)  {
+    pub fn set_uses_mcfunction_externals(&mut self, value: bool)  {
       self.builder.set_bool_field(3, value);
     }
     #[inline]
-    pub fn get_can_run_on_javascript(self) -> bool {
+    pub fn get_can_run_on_erlang(self) -> bool {
       self.builder.get_bool_field(4)
     }
     #[inline]
-    pub fn set_can_run_on_javascript(&mut self, value: bool)  {
+    pub fn set_can_run_on_erlang(&mut self, value: bool)  {
       self.builder.set_bool_field(4, value);
+    }
+    #[inline]
+    pub fn get_can_run_on_javascript(self) -> bool {
+      self.builder.get_bool_field(5)
+    }
+    #[inline]
+    pub fn set_can_run_on_javascript(&mut self, value: bool)  {
+      self.builder.set_bool_field(5, value);
+    }
+    #[inline]
+    pub fn get_can_run_on_mcfunction(self) -> bool {
+      self.builder.get_bool_field(6)
+    }
+    #[inline]
+    pub fn set_can_run_on_mcfunction(&mut self, value: bool)  {
+      self.builder.set_bool_field(6, value);
     }
   }
 
@@ -3686,6 +3710,7 @@ pub mod value_constructor_variant {
       self.builder.get_pointer_field(5).clear();
       self.builder.get_pointer_field(6).clear();
       self.builder.get_pointer_field(7).clear();
+      self.builder.get_pointer_field(8).clear();
       ::capnp::traits::FromStructBuilder::new(self.builder)
     }
     #[inline]
@@ -3734,7 +3759,7 @@ pub mod value_constructor_variant {
   }
   mod _private {
     use capnp::private::layout;
-    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 8 };
+    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 9 };
     pub const TYPE_ID: u64 = 0xe14c_79e9_2bd0_a81a;
   }
   pub enum Which<A0,A1,A2> {
@@ -3982,7 +4007,7 @@ pub mod value_constructor_variant {
     }
     mod _private {
       use capnp::private::layout;
-      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 8 };
+      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 9 };
       pub const TYPE_ID: u64 = 0x9579_9d69_8196_fbd0;
     }
   }
@@ -4100,6 +4125,14 @@ pub mod value_constructor_variant {
       #[inline]
       pub fn has_external_javascript(&self) -> bool {
         !self.reader.get_pointer_field(7).is_null()
+      }
+      #[inline]
+      pub fn get_external_mcfunction(self) -> ::capnp::Result<crate::schema_capnp::option::Reader<'a,crate::schema_capnp::external::Owned>> {
+        ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(8), ::core::option::Option::None)
+      }
+      #[inline]
+      pub fn has_external_mcfunction(&self) -> bool {
+        !self.reader.get_pointer_field(8).is_null()
       }
     }
 
@@ -4287,6 +4320,22 @@ pub mod value_constructor_variant {
       pub fn has_external_javascript(&self) -> bool {
         !self.builder.get_pointer_field(7).is_null()
       }
+      #[inline]
+      pub fn get_external_mcfunction(self) -> ::capnp::Result<crate::schema_capnp::option::Builder<'a,crate::schema_capnp::external::Owned>> {
+        ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(8), ::core::option::Option::None)
+      }
+      #[inline]
+      pub fn set_external_mcfunction(&mut self, value: crate::schema_capnp::option::Reader<'_,crate::schema_capnp::external::Owned>) -> ::capnp::Result<()> {
+        <crate::schema_capnp::option::Reader<'_,crate::schema_capnp::external::Owned> as ::capnp::traits::SetPointerBuilder>::set_pointer_builder(self.builder.get_pointer_field(8), value, false)
+      }
+      #[inline]
+      pub fn init_external_mcfunction(self, ) -> crate::schema_capnp::option::Builder<'a,crate::schema_capnp::external::Owned> {
+        ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(8), 0)
+      }
+      #[inline]
+      pub fn has_external_mcfunction(&self) -> bool {
+        !self.builder.get_pointer_field(8).is_null()
+      }
     }
 
     pub struct Pipeline { _typeless: ::capnp::any_pointer::Pipeline }
@@ -4311,10 +4360,13 @@ pub mod value_constructor_variant {
       pub fn get_external_javascript(&self) -> crate::schema_capnp::option::Pipeline<crate::schema_capnp::external::Owned> {
         ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(7))
       }
+      pub fn get_external_mcfunction(&self) -> crate::schema_capnp::option::Pipeline<crate::schema_capnp::external::Owned> {
+        ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(8))
+      }
     }
     mod _private {
       use capnp::private::layout;
-      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 8 };
+      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 9 };
       pub const TYPE_ID: u64 = 0xaea6_15c5_9871_3779;
     }
   }
@@ -4589,7 +4641,7 @@ pub mod value_constructor_variant {
     }
     mod _private {
       use capnp::private::layout;
-      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 8 };
+      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 9 };
       pub const TYPE_ID: u64 = 0xf00b_1526_e923_3dd5;
     }
   }
