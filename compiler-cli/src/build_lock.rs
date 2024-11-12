@@ -123,3 +123,27 @@ fn locking_lsp_javascript() {
     let _guard1 = lock.lock(&gleam_core::build::NullTelemetry);
     println!("Locked!")
 }
+
+#[test]
+fn locking_dev_mcfunction() {
+    let paths = crate::project_paths_at_current_directory_without_toml();
+    let lock = BuildLock::new_target(&paths, Mode::Dev, Target::MCFunction).expect("make lock");
+    let _guard1 = lock.lock(&gleam_core::build::NullTelemetry);
+    println!("Locked!")
+}
+
+#[test]
+fn locking_prod_mcfunction() {
+    let paths = crate::project_paths_at_current_directory_without_toml();
+    let lock = BuildLock::new_target(&paths, Mode::Prod, Target::MCFunction).expect("make lock");
+    let _guard1 = lock.lock(&gleam_core::build::NullTelemetry);
+    println!("Locked!")
+}
+
+#[test]
+fn locking_lsp_mcfunction() {
+    let paths = crate::project_paths_at_current_directory_without_toml();
+    let lock = BuildLock::new_target(&paths, Mode::Lsp, Target::MCFunction).expect("make lock");
+    let _guard1 = lock.lock(&gleam_core::build::NullTelemetry);
+    println!("Locked!")
+}

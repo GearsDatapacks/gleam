@@ -129,6 +129,9 @@ pub fn command(
             }
             Runtime::Bun => run_javascript_bun(&paths, &main_function.package, &module, arguments),
         },
+        Target::MCFunction => Err(Error::CannotRun {
+            target: Target::MCFunction,
+        }),
     }?;
 
     std::process::exit(status);

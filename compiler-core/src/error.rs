@@ -205,6 +205,9 @@ file_names.iter().map(|x| x.as_str()).join(", "))]
         invalid_runtime: Runtime,
     },
 
+    #[error("The target {target} cannot be run directly")]
+    CannotRun { target: Target },
+
     #[error("package downloading failed: {error}")]
     DownloadPackageError {
         package_name: String,
@@ -3587,6 +3590,20 @@ satisfying {required_version} but you are using v{gleam_version}.",
                     title: format!("Invalid runtime for {target}"),
                     text,
                     hint,
+                    location: None,
+                    level: Level::Error,
+                }]
+            }
+
+            Error::CannotRun {
+                target,
+            } => {
+                let text = format!("The {target} target cannot be run.");
+
+                vec![Diagnostic {
+                    title: format!("{target} cannot be run"),
+                    text,
+                    hint: None,
                     location: None,
                     level: Level::Error,
                 }]

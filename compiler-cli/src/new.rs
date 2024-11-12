@@ -31,6 +31,7 @@ pub enum Template {
     Lib,
     Erlang,
     JavaScript,
+    MCFunction,
 }
 
 #[derive(Debug)]
@@ -80,6 +81,7 @@ impl FileToCreate {
         let gleam_version = creator.gleam_version;
         let target = match creator.options.template {
             Template::JavaScript => "target = \"javascript\"\n",
+            Template::MCFunction => "target = \"mcfunction\"\n",
             Template::Lib | Template::Erlang => "",
         };
 
@@ -249,7 +251,7 @@ impl Creator {
         }
 
         match self.options.template {
-            Template::Lib | Template::Erlang | Template::JavaScript => {
+            Template::Lib | Template::Erlang | Template::JavaScript | Template::MCFunction => {
                 for file in FileToCreate::iter() {
                     let path = file.location(self);
                     if let Some(contents) = file.contents(self) {
