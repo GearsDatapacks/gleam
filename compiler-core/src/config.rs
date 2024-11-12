@@ -98,6 +98,7 @@ pub struct PackageConfig {
     pub erlang: ErlangConfig,
     #[serde(default)]
     pub javascript: JavaScriptConfig,
+    #[serde(default)]
     pub mcfunction: MCFunctionConfig,
     #[serde(default = "erlang_target")]
     pub target: Target,
@@ -670,7 +671,7 @@ pub struct JavaScriptConfig {
     pub deno: DenoConfig,
 }
 
-#[derive(Deserialize, Debug, PartialEq, Default, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Default, Clone, Copy)]
 pub struct MCFunctionConfig {}
 
 #[derive(Deserialize, Debug, PartialEq, Eq, Clone)]

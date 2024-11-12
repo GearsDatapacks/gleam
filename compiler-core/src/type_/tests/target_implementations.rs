@@ -195,7 +195,7 @@ pub fn pure_gleam() {
                     gleam: true,
                     uses_erlang_externals: true,
                     uses_javascript_externals: true,
-                    uses_mcfunction_externals: true,
+                    uses_mcfunction_externals: false,
                     can_run_on_erlang: true,
                     can_run_on_javascript: true,
                     can_run_on_mcfunction: true,

@@ -552,6 +552,8 @@ where
                 // This path is relative to each package output directory
                 prelude_location: Utf8PathBuf::from("../prelude.mjs"),
             },
+
+            Target::MCFunction => super::TargetCodegenConfiguration::MCFunction,
         };
 
         let mut compiler = PackageCompiler::new(

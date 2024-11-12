@@ -16,4 +16,4 @@ error: Syntax error
 2 │ @external(erl, "one", "two")
   │ ^^^^^^^^^ I don't recognise this target
 
-Try `erlang`, `javascript`.
+Try `erlang`, `javascript`, `mcfunction`.
