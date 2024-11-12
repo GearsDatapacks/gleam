@@ -3005,7 +3005,7 @@ fn constant_call_arg_formatting<A, B>(
 struct AttributesPrinter<'a> {
     external_erlang: &'a Option<(EcoString, EcoString, SrcSpan)>,
     external_javascript: &'a Option<(EcoString, EcoString, SrcSpan)>,
-    external_mcfunction: &'a Option<(EcoString, EcoString, SrcSpan)>,
+    external_mcfunction: &'a Option<(EcoString, SrcSpan)>,
     deprecation: &'a Deprecation,
     internal: bool,
 }
@@ -3037,10 +3037,7 @@ impl<'a> AttributesPrinter<'a> {
         self
     }
 
-    pub fn set_external_mcfunction(
-        mut self,
-        external: &'a Option<(EcoString, EcoString, SrcSpan)>,
-    ) -> Self {
+    pub fn set_external_mcfunction(mut self, external: &'a Option<(EcoString, SrcSpan)>) -> Self {
         self.external_mcfunction = external;
         self
     }
@@ -3074,8 +3071,8 @@ impl<'a> Documentable<'a> for AttributesPrinter<'a> {
             attributes.push(docvec!["@external(javascript, \"", m, "\", \"", f, "\")"])
         };
 
-        if let Some((m, f, _)) = self.external_mcfunction {
-            attributes.push(docvec!["@external(mcfunction, \"", m, "\", \"", f, "\")"])
+        if let Some((f, _)) = self.external_mcfunction {
+            attributes.push(docvec!["@external(mcfunction, \"", f, "\")"])
         };
 
         // @internal attribute

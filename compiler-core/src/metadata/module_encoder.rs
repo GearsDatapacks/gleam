@@ -343,10 +343,17 @@ impl<'a> ModuleEncoder<'a> {
                     builder.reborrow().init_external_javascript(),
                     external_javascript,
                 );
-                self.build_external(
-                    builder.reborrow().init_external_mcfunction(),
-                    external_mcfunction,
+
+                let mut mcfunction_builder = builder.reborrow().init_external_mcfunction(
+                    external_mcfunction
+                        .as_ref()
+                        .map(|function| function.len() as u32)
+                        .unwrap_or(0),
                 );
+                if let Some(function) = external_mcfunction {
+                    mcfunction_builder.push_str(function);
+                }
+
                 self.build_optional_field_map(builder.reborrow().init_field_map(), field_map);
                 self.build_src_span(builder.reborrow().init_location(), *location);
                 self.build_implementations(builder.init_implementations(), *implementations);

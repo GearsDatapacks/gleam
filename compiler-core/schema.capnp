@@ -150,7 +150,7 @@ struct ValueConstructorVariant {
       implementations @18 :Implementations;
       externalErlang @20 :Option(External);
       externalJavascript @21 :Option(External);
-      externalMcfunction @22 :Option(External);
+      externalMcfunction @22 :Text;
     }
 
     record :group {

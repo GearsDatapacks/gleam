@@ -490,7 +490,7 @@ pub enum ValueConstructorVariant {
         implementations: Implementations,
         external_erlang: Option<(EcoString, EcoString)>,
         external_javascript: Option<(EcoString, EcoString)>,
-        external_mcfunction: Option<(EcoString, EcoString)>,
+        external_mcfunction: Option<EcoString>,
     },
 
     /// A constructor for a custom type
@@ -677,7 +677,7 @@ pub enum ModuleValueConstructor {
         ///
         external_erlang: Option<(EcoString, EcoString)>,
         external_javascript: Option<(EcoString, EcoString)>,
-        external_mcfunction: Option<(EcoString, EcoString)>,
+        external_mcfunction: Option<EcoString>,
         field_map: Option<FieldMap>,
         documentation: Option<EcoString>,
     },

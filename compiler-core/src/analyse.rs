@@ -481,7 +481,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
         self.assert_valid_javascript_external(&name, external_javascript.as_ref(), location);
 
         // Find the external implementation for the current target, if one has been given.
-        let external = target_function_implementation(
+        let has_external = has_external_for_target(
             target,
             &external_erlang,
             &external_javascript,
@@ -497,7 +497,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             location,
         );
 
-        if external.is_some() {
+        if has_external {
             // There was an external implementation, so type annotations are
             // mandatory as the Gleam implementation may be absent, and because we
             // think you should always specify types for external functions for
@@ -622,9 +622,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             external_javascript: external_javascript
                 .as_ref()
                 .map(|(m, f, _)| (m.clone(), f.clone())),
-            external_mcfunction: external_mcfunction
-                .as_ref()
-                .map(|(m, f, _)| (m.clone(), f.clone())),
+            external_mcfunction: external_mcfunction.as_ref().map(|(f, _)| f.clone()),
             field_map,
             module: environment.current_module.clone(),
             arity: typed_args.len(),
@@ -725,7 +723,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
         body: &Vec1<UntypedStatement>,
         external_erlang: &Option<(EcoString, EcoString, SrcSpan)>,
         external_javascript: &Option<(EcoString, EcoString, SrcSpan)>,
-        external_mcfunction: &Option<(EcoString, EcoString, SrcSpan)>,
+        external_mcfunction: &Option<(EcoString, SrcSpan)>,
         location: SrcSpan,
     ) -> bool {
         match (external_erlang, external_javascript, external_mcfunction) {
@@ -1336,9 +1334,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             external_javascript: external_javascript
                 .as_ref()
                 .map(|(m, f, _)| (m.clone(), f.clone())),
-            external_mcfunction: external_mcfunction
-                .as_ref()
-                .map(|(m, f, _)| (m.clone(), f.clone())),
+            external_mcfunction: external_mcfunction.as_ref().map(|(f, _)| f.clone()),
             module: environment.current_module.clone(),
             arity: args.len(),
             location: *location,
@@ -1433,16 +1429,16 @@ fn validate_module_name(name: &EcoString) -> Result<(), Error> {
     Ok(())
 }
 
-fn target_function_implementation<'a>(
+fn has_external_for_target<'a>(
     target: Target,
-    external_erlang: &'a Option<(EcoString, EcoString, SrcSpan)>,
-    external_javascript: &'a Option<(EcoString, EcoString, SrcSpan)>,
-    external_mcfunction: &'a Option<(EcoString, EcoString, SrcSpan)>,
-) -> &'a Option<(EcoString, EcoString, SrcSpan)> {
+    external_erlang: &Option<(EcoString, EcoString, SrcSpan)>,
+    external_javascript: &Option<(EcoString, EcoString, SrcSpan)>,
+    external_mcfunction: &Option<(EcoString, SrcSpan)>,
+) -> bool {
     match target {
-        Target::Erlang => external_erlang,
-        Target::JavaScript => external_javascript,
-        Target::MCFunction => external_mcfunction,
+        Target::Erlang => external_erlang.is_some(),
+        Target::JavaScript => external_javascript.is_some(),
+        Target::MCFunction => external_mcfunction.is_some(),
     }
 }
 
@@ -1646,9 +1642,7 @@ fn generalise_function(
         external_javascript: external_javascript
             .as_ref()
             .map(|(m, f, _)| (m.clone(), f.clone())),
-        external_mcfunction: external_mcfunction
-            .as_ref()
-            .map(|(m, f, _)| (m.clone(), f.clone())),
+        external_mcfunction: external_mcfunction.as_ref().map(|(f, _)| f.clone()),
         module: module_name.clone(),
         arity: args.len(),
         location,

@@ -120,7 +120,7 @@ struct Attributes {
     deprecated: Deprecation,
     external_erlang: Option<(EcoString, EcoString, SrcSpan)>,
     external_javascript: Option<(EcoString, EcoString, SrcSpan)>,
-    external_mcfunction: Option<(EcoString, EcoString, SrcSpan)>,
+    external_mcfunction: Option<(EcoString, SrcSpan)>,
     internal: InternalAttribute,
 }
 
@@ -141,7 +141,9 @@ impl Attributes {
         match target {
             Target::Erlang => self.external_erlang = ext,
             Target::JavaScript => self.external_javascript = ext,
-            Target::MCFunction => self.external_mcfunction = ext,
+            Target::MCFunction => {
+                self.external_mcfunction = ext.map(|(function, _, location)| (function, location))
+            }
         }
     }
 }
@@ -3596,8 +3598,13 @@ functions are declared separately from types.";
 
         let _ = self.expect_one(&Token::Comma)?;
         let (_, module, _) = self.expect_string()?;
-        let _ = self.expect_one(&Token::Comma)?;
-        let (_, function, _) = self.expect_string()?;
+        let function = if target == Target::MCFunction {
+            "".into()
+        } else {
+            let _ = self.expect_one(&Token::Comma)?;
+            let (_, function, _) = self.expect_string()?;
+            function
+        };
         let _ = self.maybe_one(&Token::Comma);
         let (_, end) = self.expect_one(&Token::RightParen)?;
 

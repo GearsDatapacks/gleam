@@ -1295,7 +1295,7 @@ fn module_fn_value_with_external_implementations() {
                     },
                     external_erlang: Some(("wibble".into(), "wobble".into())),
                     external_javascript: Some(("wobble".into(), "wibble".into())),
-                    external_mcfunction: Some(("wobble".into(), "wibble".into())),
+                    external_mcfunction: Some("wibble:wobble".into()),
                     implementations: Implementations {
                         gleam: false,
                         uses_erlang_externals: true,
@@ -1348,7 +1348,7 @@ fn internal_module_fn() {
                     },
                     external_erlang: Some(("wibble".into(), "wobble".into())),
                     external_javascript: Some(("wobble".into(), "wibble".into())),
-                    external_mcfunction: Some(("wobble".into(), "wibble".into())),
+                    external_mcfunction: Some("wibble:wobble".into()),
                     implementations: Implementations {
                         gleam: false,
                         uses_erlang_externals: true,
@@ -1404,7 +1404,7 @@ fn internal_annotated_module_fn() {
                     },
                     external_erlang: Some(("wibble".into(), "wobble".into())),
                     external_javascript: Some(("wobble".into(), "wibble".into())),
-                    external_mcfunction: Some(("wobble".into(), "wibble".into())),
+                    external_mcfunction: Some("wibble:wobble".into()),
                     implementations: Implementations {
                         gleam: false,
                         uses_erlang_externals: true,

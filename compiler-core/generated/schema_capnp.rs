@@ -4127,7 +4127,7 @@ pub mod value_constructor_variant {
         !self.reader.get_pointer_field(7).is_null()
       }
       #[inline]
-      pub fn get_external_mcfunction(self) -> ::capnp::Result<crate::schema_capnp::option::Reader<'a,crate::schema_capnp::external::Owned>> {
+      pub fn get_external_mcfunction(self) -> ::capnp::Result<::capnp::text::Reader<'a>> {
         ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(8), ::core::option::Option::None)
       }
       #[inline]
@@ -4321,16 +4321,16 @@ pub mod value_constructor_variant {
         !self.builder.get_pointer_field(7).is_null()
       }
       #[inline]
-      pub fn get_external_mcfunction(self) -> ::capnp::Result<crate::schema_capnp::option::Builder<'a,crate::schema_capnp::external::Owned>> {
+      pub fn get_external_mcfunction(self) -> ::capnp::Result<::capnp::text::Builder<'a>> {
         ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(8), ::core::option::Option::None)
       }
       #[inline]
-      pub fn set_external_mcfunction(&mut self, value: crate::schema_capnp::option::Reader<'_,crate::schema_capnp::external::Owned>) -> ::capnp::Result<()> {
-        <crate::schema_capnp::option::Reader<'_,crate::schema_capnp::external::Owned> as ::capnp::traits::SetPointerBuilder>::set_pointer_builder(self.builder.get_pointer_field(8), value, false)
+      pub fn set_external_mcfunction(&mut self, value: ::capnp::text::Reader<'_>)  {
+        self.builder.get_pointer_field(8).set_text(value);
       }
       #[inline]
-      pub fn init_external_mcfunction(self, ) -> crate::schema_capnp::option::Builder<'a,crate::schema_capnp::external::Owned> {
-        ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(8), 0)
+      pub fn init_external_mcfunction(self, size: u32) -> ::capnp::text::Builder<'a> {
+        self.builder.get_pointer_field(8).init_text(size)
       }
       #[inline]
       pub fn has_external_mcfunction(&self) -> bool {
@@ -4359,9 +4359,6 @@ pub mod value_constructor_variant {
       }
       pub fn get_external_javascript(&self) -> crate::schema_capnp::option::Pipeline<crate::schema_capnp::external::Owned> {
         ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(7))
-      }
-      pub fn get_external_mcfunction(&self) -> crate::schema_capnp::option::Pipeline<crate::schema_capnp::external::Owned> {
-        ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(8))
       }
     }
     mod _private {

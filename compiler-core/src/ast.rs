@@ -649,7 +649,7 @@ pub struct Function<T, Expr> {
     pub documentation: Option<(u32, EcoString)>,
     pub external_erlang: Option<(EcoString, EcoString, SrcSpan)>,
     pub external_javascript: Option<(EcoString, EcoString, SrcSpan)>,
-    pub external_mcfunction: Option<(EcoString, EcoString, SrcSpan)>,
+    pub external_mcfunction: Option<(EcoString, SrcSpan)>,
     pub implementations: Implementations,
 }
 

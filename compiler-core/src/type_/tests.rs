@@ -2770,7 +2770,7 @@ fn assert_suitable_main_function_erlang_not_supported() {
             module: "module".into(),
             external_erlang: Some(("wibble".into(), "wobble".into())),
             external_javascript: Some(("wobble".into(), "wibble".into())),
-            external_mcfunction: Some(("wobble".into(), "wibble".into())),
+            external_mcfunction: Some("wibble:wobble".into()),
             implementations: Implementations {
                 gleam: false,
                 uses_erlang_externals: true,
@@ -2800,7 +2800,7 @@ fn assert_suitable_main_function_javascript_not_supported() {
             module: "module".into(),
             external_erlang: Some(("wibble".into(), "wobble".into())),
             external_javascript: Some(("wobble".into(), "wibble".into())),
-            external_mcfunction: Some(("wobble".into(), "wibble".into())),
+            external_mcfunction: Some("wibble:wobble".into()),
             implementations: Implementations {
                 gleam: false,
                 uses_erlang_externals: true,
