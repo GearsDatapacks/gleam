@@ -158,6 +158,7 @@ pub enum TargetCodegenConfiguration {
     Erlang {
         app_file: Option<ErlangAppCodegenConfiguration>,
     },
+    MCFunction,
 }
 
 impl TargetCodegenConfiguration {
@@ -165,6 +166,7 @@ impl TargetCodegenConfiguration {
         match self {
             Self::JavaScript { .. } => Target::JavaScript,
             Self::Erlang { .. } => Target::Erlang,
+            Self::MCFunction => Target::MCFunction,
         }
     }
 }

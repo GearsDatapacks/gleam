@@ -140,8 +140,8 @@ impl Attributes {
     fn set_external_for(&mut self, target: Target, ext: Option<(EcoString, EcoString, SrcSpan)>) {
         match target {
             Target::Erlang => self.external_erlang = ext,
-            Target::MCFunction => self.external_javascript = ext,
-            Target::JavaScript => self.external_mcfunction = ext,
+            Target::JavaScript => self.external_javascript = ext,
+            Target::MCFunction => self.external_mcfunction = ext,
         }
     }
 }
