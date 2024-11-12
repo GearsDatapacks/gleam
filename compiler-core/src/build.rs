@@ -62,6 +62,9 @@ pub enum Target {
     #[strum(serialize = "javascript", serialize = "js")]
     #[serde(rename = "javascript", alias = "js")]
     JavaScript,
+    #[strum(serialize = "mcfunction", serialize = "mcf")]
+    #[serde(rename = "mcfunction", alias = "mcf")]
+    MCFunction,
 }
 
 impl Target {
@@ -83,6 +86,14 @@ impl Target {
     #[must_use]
     pub fn is_erlang(&self) -> bool {
         matches!(self, Self::Erlang)
+    }
+
+    /// Returns `true` if the target is [`MCFunction`].
+    ///
+    /// [`MCFunction`]: Target::MCFunction
+    #[must_use]
+    pub fn is_mcfunction(&self) -> bool {
+        matches!(self, Self::MCFunction)
     }
 }
 

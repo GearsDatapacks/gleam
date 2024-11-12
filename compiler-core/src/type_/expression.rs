@@ -40,12 +40,16 @@ pub struct Implementations {
     pub gleam: bool,
     pub can_run_on_erlang: bool,
     pub can_run_on_javascript: bool,
-    /// Wether the function has an implementation that uses external erlang
+    pub can_run_on_mcfunction: bool,
+    /// Whether the function has an implementation that uses external erlang
     /// code.
     pub uses_erlang_externals: bool,
-    /// Wether the function has an implementation that uses external javascript
+    /// Whether the function has an implementation that uses external javascript
     /// code.
     pub uses_javascript_externals: bool,
+    /// Whether the function has an implementation that uses external mcfunction
+    /// code.
+    pub uses_mcfunction_externals: bool,
 }
 
 impl Implementations {
@@ -54,8 +58,10 @@ impl Implementations {
             gleam: true,
             can_run_on_erlang: true,
             can_run_on_javascript: true,
+            can_run_on_mcfunction: true,
             uses_javascript_externals: false,
             uses_erlang_externals: false,
+            uses_mcfunction_externals: false,
         }
     }
 }
@@ -70,8 +76,10 @@ pub struct FunctionDefinition {
     pub has_body: bool,
     /// The function has @external(erlang, "...", "...")
     pub has_erlang_external: bool,
-    /// The function has @external(JavaScript, "...", "...")
+    /// The function has @external(javascript, "...", "...")
     pub has_javascript_external: bool,
+    /// The function has @external(mcfunction, "...", "...")
+    pub has_mcfunction_external: bool,
 }
 
 impl FunctionDefinition {
@@ -79,6 +87,7 @@ impl FunctionDefinition {
         match target {
             Target::Erlang => self.has_erlang_external,
             Target::JavaScript => self.has_javascript_external,
+            Target::MCFunction => self.has_mcfunction_external,
         }
     }
 }
@@ -98,13 +107,16 @@ impl Implementations {
             gleam,
             uses_erlang_externals: other_uses_erlang_externals,
             uses_javascript_externals: other_uses_javascript_externals,
+            uses_mcfunction_externals: other_uses_mcfunction_externals,
             can_run_on_erlang: other_can_run_on_erlang,
             can_run_on_javascript: other_can_run_on_javascript,
+            can_run_on_mcfunction: other_can_run_on_mcfunction,
         } = implementations;
         let FunctionDefinition {
             has_body: _,
             has_erlang_external,
             has_javascript_external,
+            has_mcfunction_external,
         } = current_function_definition;
 
         // If a pure-Gleam function uses a function that doesn't have a pure
@@ -117,6 +129,8 @@ impl Implementations {
             || (self.can_run_on_erlang && (*gleam || *other_can_run_on_erlang));
         self.can_run_on_javascript = *has_javascript_external
             || (self.can_run_on_javascript && (*gleam || *other_can_run_on_javascript));
+        self.can_run_on_mcfunction = *has_mcfunction_external
+            || (self.can_run_on_mcfunction && (*gleam || *other_can_run_on_mcfunction));
 
         // If a function uses a function that relies on external code (be it
         // javascript or erlang) then it's considered as using external code as
@@ -139,6 +153,8 @@ impl Implementations {
         self.uses_erlang_externals = self.uses_erlang_externals || *other_uses_erlang_externals;
         self.uses_javascript_externals =
             self.uses_javascript_externals || *other_uses_javascript_externals;
+        self.uses_mcfunction_externals =
+            self.uses_mcfunction_externals || *other_uses_mcfunction_externals;
     }
 
     /// Returns true if the current target is supported by the given
@@ -150,6 +166,7 @@ impl Implementations {
             || match target {
                 Target::Erlang => self.can_run_on_erlang,
                 Target::JavaScript => self.can_run_on_javascript,
+                Target::MCFunction => self.can_run_on_mcfunction,
             }
     }
 }
@@ -236,8 +253,10 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             gleam: definition.has_body,
             can_run_on_erlang: definition.has_body || definition.has_erlang_external,
             can_run_on_javascript: definition.has_body || definition.has_javascript_external,
+            can_run_on_mcfunction: definition.has_body || definition.has_mcfunction_external,
             uses_erlang_externals: definition.has_erlang_external,
             uses_javascript_externals: definition.has_javascript_external,
+            uses_mcfunction_externals: definition.has_mcfunction_external,
         };
 
         hydrator.permit_holes(true);

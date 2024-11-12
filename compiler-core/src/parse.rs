@@ -120,6 +120,7 @@ struct Attributes {
     deprecated: Deprecation,
     external_erlang: Option<(EcoString, EcoString, SrcSpan)>,
     external_javascript: Option<(EcoString, EcoString, SrcSpan)>,
+    external_mcfunction: Option<(EcoString, EcoString, SrcSpan)>,
     internal: InternalAttribute,
 }
 
@@ -132,13 +133,15 @@ impl Attributes {
         match target {
             Target::Erlang => self.external_erlang.is_some(),
             Target::JavaScript => self.external_javascript.is_some(),
+            Target::MCFunction => self.external_mcfunction.is_some(),
         }
     }
 
     fn set_external_for(&mut self, target: Target, ext: Option<(EcoString, EcoString, SrcSpan)>) {
         match target {
             Target::Erlang => self.external_erlang = ext,
-            Target::JavaScript => self.external_javascript = ext,
+            Target::MCFunction => self.external_javascript = ext,
+            Target::JavaScript => self.external_mcfunction = ext,
         }
     }
 }
@@ -1869,12 +1872,15 @@ where
             deprecation: std::mem::take(&mut attributes.deprecated),
             external_erlang: attributes.external_erlang.take(),
             external_javascript: attributes.external_javascript.take(),
+            external_mcfunction: attributes.external_mcfunction.take(),
             implementations: Implementations {
                 gleam: true,
                 can_run_on_erlang: true,
                 can_run_on_javascript: true,
+                can_run_on_mcfunction: true,
                 uses_erlang_externals: false,
                 uses_javascript_externals: false,
+                uses_mcfunction_externals: false,
             },
         })))
     }
@@ -2645,8 +2651,10 @@ where
                     gleam: true,
                     can_run_on_erlang: true,
                     can_run_on_javascript: true,
+                    can_run_on_mcfunction: true,
                     uses_erlang_externals: false,
                     uses_javascript_externals: false,
+                    uses_mcfunction_externals: false,
                 },
             })))
         } else {
@@ -3582,6 +3590,7 @@ functions are declared separately from types.";
         let target = match name.as_str() {
             "erlang" => Target::Erlang,
             "javascript" => Target::JavaScript,
+            "mcfunction" => Target::MCFunction,
             _ => return parse_error(ParseErrorType::UnknownTarget, SrcSpan::new(start, end)),
         };
 
