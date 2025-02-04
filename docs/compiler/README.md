@@ -22,7 +22,8 @@ The project is made up of several Rust crates (projects):
 
 - `compiler-core`: This project parses, analyses, and compiles Gleam projects.
   It is entirely pure and has no IO so that is provided by the other Rust crates
-  that wrap this one.
+  that wrap this one. For more information on the structure of this crate, see the
+  [project structure docs](./project-structure.md).
 - `compiler-cli`: A command line interface that wraps the core compiler and
   provides IO to files and to the console.
 - `compiler-wasm`: A JavaScript interface to the core compiler via web assembly.
@@ -83,11 +84,11 @@ this:
 └────────────────────┘
           │
           ▼
- Erlang or JavaScript 
+ Erlang or JavaScript
      source code
 ```
 
-## <a name='Testing'></a>Testing 
+## <a name='Testing'></a>Testing
 
 We like automated tests! They're a great way to verify that the compiler is
 doing what we expect it do as we make changes.
