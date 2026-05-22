@@ -1,5 +1,4 @@
 use crate::{
-    analyse::TargetSupport,
     build::{Origin, Target},
     config::PackageConfig,
     inline,
@@ -174,7 +173,6 @@ pub fn compile(src: &str, deps: Vec<(&str, &str, &str)>) -> TypedModule {
             warnings: &TypeWarningEmitter::null(),
             direct_dependencies: &HashMap::new(),
             dev_dependencies: &std::collections::HashSet::new(),
-            target_support: TargetSupport::Enforced,
             package_config: &dep_config,
         }
         .infer_module(ast, line_numbers, "".into())
@@ -200,7 +198,6 @@ pub fn compile(src: &str, deps: Vec<(&str, &str, &str)>) -> TypedModule {
         warnings: &TypeWarningEmitter::null(),
         direct_dependencies: &direct_dependencies,
         dev_dependencies: &std::collections::HashSet::new(),
-        target_support: TargetSupport::NotEnforced,
         package_config: &config,
     }
     .infer_module(ast, line_numbers, "src/module.gleam".into())

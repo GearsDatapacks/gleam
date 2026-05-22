@@ -965,7 +965,12 @@ impl<'a> Generator<'a> {
             "export function "
         };
 
-        let body = generator.function_body(function.body.as_slice(), function.arguments.as_slice());
+        let body = function
+            .body
+            .for_target(Target::JavaScript)
+            .expect("Function supports the JavaScript target");
+
+        let body = generator.function_body(body, function.arguments.as_slice());
 
         Some(docvec![
             function_doc,

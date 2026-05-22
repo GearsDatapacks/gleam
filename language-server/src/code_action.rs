@@ -6,12 +6,13 @@ use gleam_core::{
     analyse::Inferred,
     ast::{
         self, ArgNames, AssignName, AssignmentKind, BitArraySegmentTruncation, BoundVariable,
-        BoundVariableName, CallArg, CustomType, FunctionLiteralKind, ImplicitCallArgOrigin, Import,
-        InvalidExpression, PIPE_PRECEDENCE, Pattern, PatternUnusedArguments,
-        PipelineAssignmentKind, Publicity, RecordConstructor, SrcSpan, TodoKind,
-        TypeAstConstructorName, TypedArg, TypedAssignment, TypedClauseGuard, TypedDefinitions,
-        TypedExpr, TypedFunction, TypedModuleConstant, TypedPattern, TypedPipelineAssignment,
-        TypedRecordConstructor, TypedStatement, TypedTailPattern, TypedUse, visit::Visit as _,
+        BoundVariableName, CallArg, CustomType, FunctionBody, FunctionLiteralKind,
+        ImplicitCallArgOrigin, Import, InvalidExpression, PIPE_PRECEDENCE, Pattern,
+        PatternUnusedArguments, PipelineAssignmentKind, Publicity, RecordConstructor, SrcSpan,
+        TodoKind, TypeAstConstructorName, TypedArg, TypedAssignment, TypedClauseGuard,
+        TypedDefinitions, TypedExpr, TypedFunction, TypedFunctionBody, TypedModuleConstant,
+        TypedPattern, TypedPipelineAssignment, TypedRecordConstructor, TypedStatement,
+        TypedTailPattern, TypedUse, visit::Visit as _,
     },
     build::{Located, Module, Origin},
     config::PackageConfig,
@@ -1118,9 +1119,7 @@ impl ScopeVariableCollector {
             }
         }
 
-        for statement in &fun.body {
-            self.visit_typed_statement(statement);
-        }
+        self.visit_typed_function_body(&fun.body);
 
         self.variables
     }
@@ -3088,9 +3087,10 @@ impl<'a> ConvertToUse<'a> {
 
 impl<'ast> ast::visit::Visit<'ast> for ConvertToUse<'ast> {
     fn visit_typed_function(&mut self, fun: &'ast TypedFunction) {
+        let relevant_body = function_body(&fun.body, &self.edits, self.params.range);
         // The cursor has to be inside the last statement of the function to
         // offer the code action.
-        if let Some(last) = &fun.body.last()
+        if let Some(last) = relevant_body.last()
             && within(
                 self.params.range,
                 self.edits.src_span_to_lsp_range(last.location()),
@@ -3223,6 +3223,25 @@ fn turn_expression_into_use(expr: &TypedExpr) -> Option<CallLocations> {
         arg_before_callback_span,
         callback_body_span,
     })
+}
+
+fn function_body<'a>(
+    body: &'a TypedFunctionBody,
+    edits: &TextEdits<'_>,
+    range: Range,
+) -> &'a [TypedStatement] {
+    match body {
+        FunctionBody::None => &[],
+        FunctionBody::SingleImplementation(body) => body.as_slice(),
+        FunctionBody::MultipleImplementations(implementations) => {
+            match implementations.iter().find(|implementation| {
+                within(range, edits.src_span_to_lsp_range(implementation.location))
+            }) {
+                Some(implementation) => implementation.statements.as_slice(),
+                None => &[],
+            }
+        }
+    }
 }
 
 /// Builder for code action to extract expression into a variable.
@@ -6027,12 +6046,15 @@ impl<'ast, IO> ast::visit::Visit<'ast> for PatternMatchOnValue<'ast, IO> {
             return;
         }
 
+        let body = function_body(&fun.body, &self.edits, self.params.range);
+        let first_statement = body.first();
+
         for arg in &fun.arguments {
             // If the cursor is placed on one of the arguments, then we can try
             // and generate code for that one.
             let arg_range = self.edits.src_span_to_lsp_range(arg.location);
             if within(self.params.range, arg_range)
-                && let Some(first_statement) = fun.body.first()
+                && let Some(first_statement) = first_statement
             {
                 self.selected_value = Some(PatternMatchedValue::FunctionArgument {
                     arg,
@@ -8639,7 +8661,7 @@ impl<'a> RemoveEchos<'a> {
 
 impl<'ast> ast::visit::Visit<'ast> for RemoveEchos<'ast> {
     fn visit_typed_function(&mut self, fun: &'ast TypedFunction) {
-        self.visit_function_statements(&fun.body);
+        self.visit_function_statements(function_body(&fun.body, &self.edits, self.params.range));
     }
 
     fn visit_typed_expr_fn(
@@ -11257,7 +11279,8 @@ impl<'ast> ast::visit::Visit<'ast> for ExtractFunction<'ast> {
 
         if within(self.params.range, range) {
             self.function_end_position = Some(function.end_position);
-            self.last_statement_location = function.body.last().map(|last| last.location());
+            let body = function_body(&function.body, &self.edits, self.params.range);
+            self.last_statement_location = body.last().map(|last| last.location());
 
             ast::visit::visit_typed_function(self, function);
         }

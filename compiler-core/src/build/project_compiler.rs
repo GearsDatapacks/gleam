@@ -1,6 +1,5 @@
 use crate::{
     Error, Result, Warning,
-    analyse::TargetSupport,
     build::{
         Mode, Module, Origin, Package, Target,
         package_compiler::{self, PackageCompiler},
@@ -62,7 +61,6 @@ pub struct Options {
     pub compile: Compile,
     pub codegen: Codegen,
     pub warnings_as_errors: bool,
-    pub root_target_support: TargetSupport,
     pub no_print_progress: bool,
 }
 
@@ -633,20 +631,6 @@ where
         compiler.compile_beam_bytecode = self.options.codegen.should_codegen(is_root);
         compiler.compile_modules = !(self.options.compile == Compile::DepsOnly && is_root);
         compiler.subprocess_stdio = self.subprocess_stdio;
-        compiler.target_support = if is_root {
-            // When compiling the root package it is context specific as to whether we need to
-            // enforce that all functions have an implementation for the current target.
-            // Typically we do, but if we are using `gleam run -m $module` to run a module that
-            // belongs to a dependency we don't need to enforce this as we don't want to fail
-            // compilation. It's impossible for a dependecy module to call functions from the root
-            // package, so it's OK if they could not be compiled.
-            self.options.root_target_support
-        } else {
-            // When compiling dependencies we don't enforce that all functions have an
-            // implementation for the current target. It is OK if they have APIs that are
-            // unaccessible so long as they are not used by the root package.
-            TargetSupport::NotEnforced
-        };
         if is_root {
             compiler.cached_warnings = CachedWarnings::Use;
             // We only check for conflicting Gleam files if this is the root

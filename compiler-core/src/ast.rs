@@ -858,7 +858,7 @@ pub struct Function<T, Expr> {
     pub end_position: u32,
     pub name: Option<SpannedString>,
     pub arguments: Vec<Arg<T>>,
-    pub body: Vec<Statement<T, Expr>>,
+    pub body: FunctionBody<T, Expr>,
     pub publicity: Publicity,
     pub deprecation: Deprecation,
     pub return_annotation: Option<TypeAst>,
@@ -887,11 +887,7 @@ impl TypedFunction {
             return None;
         }
 
-        if let Some(found) = self
-            .body
-            .iter()
-            .find_map(|statement| statement.find_node(byte_index))
-        {
+        if let Some(found) = self.body.find_node(byte_index) {
             return Some(found);
         }
 
@@ -901,14 +897,6 @@ impl TypedFunction {
             .find_map(|arg| arg.find_node(byte_index))
         {
             return Some(found_arg);
-        };
-
-        if let Some(found_statement) = self
-            .body
-            .iter()
-            .find(|statement| statement.location().contains(byte_index))
-        {
-            return Some(Located::Statement(found_statement));
         };
 
         // Check if location is within the return annotation.
@@ -936,9 +924,7 @@ impl TypedFunction {
             return None;
         }
 
-        self.body
-            .iter()
-            .find_map(|statement| statement.find_statement(byte_index))
+        self.body.find_statement(byte_index)
     }
 
     pub fn main_function(&self) -> Option<&TypedFunction> {
@@ -951,6 +937,131 @@ impl TypedFunction {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionBody<T, Expr> {
+    None,
+    SingleImplementation(Vec1<Statement<T, Expr>>),
+    MultipleImplementations(Vec1<FunctionImplementation<T, Expr>>),
+}
+
+impl<T, Expr> FunctionBody<T, Expr> {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn has_gleam_implementation(&self) -> bool {
+        match self {
+            FunctionBody::None => false,
+            FunctionBody::SingleImplementation(_) => true,
+            FunctionBody::MultipleImplementations(implementations) => implementations
+                .iter()
+                .any(|implementation| matches!(implementation.target, ImplementationTarget::Gleam)),
+        }
+    }
+
+    pub fn for_target(&self, target: Target) -> Option<&[Statement<T, Expr>]> {
+        match self {
+            FunctionBody::None => Some(&[]),
+            FunctionBody::SingleImplementation(body) => Some(body),
+            FunctionBody::MultipleImplementations(implementations) => {
+                let mut pure_gleam = None;
+                for implementation in implementations {
+                    match (implementation.target, target) {
+                        (ImplementationTarget::JavaScript, Target::JavaScript)
+                        | (ImplementationTarget::Erlang, Target::Erlang) => {
+                            return Some(&implementation.statements);
+                        }
+                        (ImplementationTarget::JavaScript, Target::Erlang)
+                        | (ImplementationTarget::Erlang, Target::JavaScript) => {}
+                        (ImplementationTarget::Gleam, _) => {
+                            pure_gleam = Some(implementation.statements.as_slice())
+                        }
+                    }
+                }
+                pure_gleam
+            }
+        }
+    }
+}
+
+impl UntypedFunctionBody {
+    pub fn location(&self) -> Option<SrcSpan> {
+        match self {
+            FunctionBody::None => None,
+            FunctionBody::SingleImplementation(body) => Some(body.last().location()),
+            FunctionBody::MultipleImplementations(implementations) => {
+                Some(implementations.last().location)
+            }
+        }
+    }
+}
+
+impl TypedFunctionBody {
+    fn find_node(&self, byte_index: u32) -> Option<Located<'_>> {
+        match self {
+            FunctionBody::None => None,
+            FunctionBody::SingleImplementation(body) => body
+                .iter()
+                .find_map(|statement| statement.find_node(byte_index)),
+            FunctionBody::MultipleImplementations(implementations) => {
+                implementations.iter().find_map(|implementation| {
+                    implementation
+                        .statements
+                        .iter()
+                        .find_map(|statement| statement.find_node(byte_index))
+                })
+            }
+        }
+    }
+
+    fn find_statement(&self, byte_index: u32) -> Option<&TypedStatement> {
+        match self {
+            FunctionBody::None => None,
+            FunctionBody::SingleImplementation(body) => body
+                .iter()
+                .find_map(|statement| statement.find_statement(byte_index)),
+            FunctionBody::MultipleImplementations(implementations) => {
+                implementations.iter().find_map(|implementation| {
+                    implementation
+                        .statements
+                        .iter()
+                        .find_map(|statement| statement.find_statement(byte_index))
+                })
+            }
+        }
+    }
+}
+
+pub type UntypedFunctionBody = FunctionBody<(), UntypedExpr>;
+pub type TypedFunctionBody = FunctionBody<Arc<Type>, TypedExpr>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImplementationTarget {
+    JavaScript,
+    Erlang,
+    Gleam,
+}
+
+impl ImplementationTarget {
+    pub fn to_target(&self) -> Option<Target> {
+        match self {
+            ImplementationTarget::JavaScript => Some(Target::JavaScript),
+            ImplementationTarget::Erlang => Some(Target::Erlang),
+            ImplementationTarget::Gleam => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionImplementation<T, Expr> {
+    pub target: ImplementationTarget,
+    pub location: SrcSpan,
+    pub statements: Vec1<Statement<T, Expr>>,
+}
+
+pub type UntypedFunctionImplementation = FunctionImplementation<(), UntypedExpr>;
+pub type TypedFunctionImplementation = FunctionImplementation<Arc<Type>, TypedExpr>;
 
 pub type UntypedImport = Import<()>;
 pub type TypedImport = Import<EcoString>;
@@ -4444,7 +4555,13 @@ impl TypedStatement {
 
     pub fn find_node(&self, byte_index: u32) -> Option<Located<'_>> {
         match self {
-            Statement::Use(use_) => use_.find_node(byte_index),
+            Statement::Use(use_) => use_.find_node(byte_index).or_else(|| {
+                if use_.location.contains(byte_index) {
+                    Some(Located::Statement(self))
+                } else {
+                    None
+                }
+            }),
             Statement::Expression(expression) => expression.find_node(byte_index),
             Statement::Assignment(assignment) => assignment.find_node(byte_index).or_else(|| {
                 if assignment.location.contains(byte_index) {

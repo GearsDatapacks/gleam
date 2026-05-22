@@ -2,7 +2,6 @@ use crate::fs::{self, ZipArchive};
 use camino::Utf8PathBuf;
 use gleam_core::{
     Result,
-    analyse::TargetSupport,
     build::{Codegen, Compile, Mode, Options, Target},
     paths::ProjectPaths,
     type_::ModuleFunction,
@@ -136,7 +135,6 @@ pub(crate) fn erlang_shipment(paths: &ProjectPaths) -> Result<()> {
     let built = crate::build::main(
         paths,
         Options {
-            root_target_support: TargetSupport::Enforced,
             warnings_as_errors: false,
             codegen: Codegen::All,
             compile: Compile::All,
@@ -247,7 +245,6 @@ pub fn package_interface(paths: &ProjectPaths, out: Utf8PathBuf) -> Result<()> {
             codegen: Codegen::None,
             compile: Compile::All,
             warnings_as_errors: false,
-            root_target_support: TargetSupport::Enforced,
             no_print_progress: false,
         },
         crate::build::download_dependencies(paths, crate::cli::Reporter::new())?,

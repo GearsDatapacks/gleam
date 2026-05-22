@@ -124,11 +124,11 @@ use crate::{
     analyse::Inferred,
     ast::{
         self, ArgNames, Assert, AssignName, Assignment, AssignmentKind, BitArrayOption,
-        BitArraySegment, BitArraySize, CallArg, Clause, FunctionLiteralKind, Pattern,
-        PipelineAssignmentKind, Publicity, SrcSpan, Statement, TailPattern, TypedArg, TypedAssert,
-        TypedAssignment, TypedBitArraySize, TypedClause, TypedDefinitions, TypedExpr,
-        TypedExprBitArraySegment, TypedFunction, TypedModule, TypedPattern,
-        TypedPipelineAssignment, TypedStatement, TypedUse, visit::Visit,
+        BitArraySegment, BitArraySize, CallArg, Clause, FunctionBody, FunctionImplementation,
+        FunctionLiteralKind, Pattern, PipelineAssignmentKind, Publicity, SrcSpan, Statement,
+        TailPattern, TypedArg, TypedAssert, TypedAssignment, TypedBitArraySize, TypedClause,
+        TypedDefinitions, TypedExpr, TypedExprBitArraySegment, TypedFunction, TypedModule,
+        TypedPattern, TypedPipelineAssignment, TypedStatement, TypedUse, visit::Visit,
     },
     exhaustiveness::{Body, CompiledCase, Decision},
     type_::{
@@ -259,11 +259,24 @@ impl Inliner<'_> {
             }
         }
 
-        function.body = function
-            .body
-            .into_iter()
-            .map(|statement| self.statement(statement))
-            .collect_vec();
+        function.body = match function.body {
+            FunctionBody::None => FunctionBody::None,
+            FunctionBody::SingleImplementation(body) => FunctionBody::SingleImplementation(
+                body.mapped(|statement| self.statement(statement)),
+            ),
+            FunctionBody::MultipleImplementations(implementations) => {
+                FunctionBody::MultipleImplementations(implementations.mapped(|implementation| {
+                    FunctionImplementation {
+                        target: implementation.target,
+                        location: implementation.location,
+                        statements: implementation
+                            .statements
+                            .mapped(|statement| self.statement(statement)),
+                    }
+                }))
+            }
+        };
+
         function
     }
 
@@ -1475,11 +1488,14 @@ pub fn function_to_inlinable(
 
     let mut converter = FunctionToInlinable::new(&function.arguments);
 
-    let body = function
-        .body
-        .iter()
-        .map(|statement| converter.statement(statement))
-        .collect::<Option<_>>()?;
+    let body = match &function.body {
+        FunctionBody::None => Vec::new(),
+        FunctionBody::SingleImplementation(body) => body
+            .iter()
+            .map(|statement| converter.statement(statement))
+            .collect::<Option<_>>()?,
+        FunctionBody::MultipleImplementations(_) => return None,
+    };
 
     // Figure out which parameters can be inlined within the body of this function.
     // When we inline a function, we convert it to a block with assignments for

@@ -42,8 +42,9 @@ use crate::{
     analyse::Inferred,
     ast::{
         BitArraySize, RecordBeingUpdated, TypeAstConstructorName, TypedBitArraySize,
-        TypedConstantBitArraySegment, TypedDefinitions, TypedImport, TypedTailPattern,
-        TypedTypeAlias, typed::InvalidExpression,
+        TypedConstantBitArraySegment, TypedDefinitions, TypedFunctionBody,
+        TypedFunctionImplementation, TypedImport, TypedTailPattern, TypedTypeAlias,
+        typed::InvalidExpression,
     },
     exhaustiveness::CompiledCase,
     parse::LiteralFloatValue,
@@ -61,11 +62,12 @@ use vec1::Vec1;
 use crate::type_::Type;
 
 use super::{
-    AssignName, BinOp, BitArrayOption, CallArg, Pattern, PipelineAssignmentKind, RecordUpdateArg,
-    SrcSpan, Statement, TodoKind, TypeAst, TypedArg, TypedAssert, TypedAssignment, TypedClause,
-    TypedClauseGuard, TypedConstant, TypedCustomType, TypedExpr, TypedExprBitArraySegment,
-    TypedFunction, TypedModule, TypedModuleConstant, TypedPattern, TypedPatternBitArraySegment,
-    TypedPipelineAssignment, TypedStatement, TypedUse, untyped::FunctionLiteralKind,
+    AssignName, BinOp, BitArrayOption, CallArg, FunctionBody, Pattern, PipelineAssignmentKind,
+    RecordUpdateArg, SrcSpan, Statement, TodoKind, TypeAst, TypedArg, TypedAssert, TypedAssignment,
+    TypedClause, TypedClauseGuard, TypedConstant, TypedCustomType, TypedExpr,
+    TypedExprBitArraySegment, TypedFunction, TypedModule, TypedModuleConstant, TypedPattern,
+    TypedPatternBitArraySegment, TypedPipelineAssignment, TypedStatement, TypedUse,
+    untyped::FunctionLiteralKind,
 };
 
 pub trait Visit<'ast> {
@@ -75,6 +77,17 @@ pub trait Visit<'ast> {
 
     fn visit_typed_function(&mut self, fun: &'ast TypedFunction) {
         visit_typed_function(self, fun);
+    }
+
+    fn visit_typed_function_body(&mut self, body: &'ast TypedFunctionBody) {
+        visit_typed_function_body(self, body);
+    }
+
+    fn visit_typed_function_implementation(
+        &mut self,
+        implementation: &'ast TypedFunctionImplementation,
+    ) {
+        visit_typed_function_implementation(self, implementation);
     }
 
     fn visit_typed_module_constant(&mut self, constant: &'ast TypedModuleConstant) {
@@ -999,7 +1012,35 @@ where
         v.visit_type_ast(annotation, Some(fun.return_type.clone()));
     }
 
-    for statement in &fun.body {
+    v.visit_typed_function_body(&fun.body);
+}
+
+pub fn visit_typed_function_body<'a, V>(v: &mut V, body: &'a TypedFunctionBody)
+where
+    V: Visit<'a> + ?Sized,
+{
+    match body {
+        FunctionBody::None => {}
+        FunctionBody::SingleImplementation(body) => {
+            for statement in body {
+                v.visit_typed_statement(statement);
+            }
+        }
+        FunctionBody::MultipleImplementations(implementations) => {
+            for implementation in implementations {
+                v.visit_typed_function_implementation(implementation);
+            }
+        }
+    }
+}
+
+pub fn visit_typed_function_implementation<'a, V>(
+    v: &mut V,
+    implementation: &'a TypedFunctionImplementation,
+) where
+    V: Visit<'a> + ?Sized,
+{
+    for statement in implementation.statements.iter() {
         v.visit_typed_statement(statement);
     }
 }

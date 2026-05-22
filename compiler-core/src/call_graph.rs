@@ -7,9 +7,9 @@ mod into_dependency_order_tests;
 use crate::{
     Result,
     ast::{
-        AssignName, AssignmentKind, BitArrayOption, BitArraySize, ClauseGuard, Constant, Pattern,
-        SrcSpan, Statement, UntypedClauseGuard, UntypedConstant, UntypedExpr, UntypedFunction,
-        UntypedModuleConstant, UntypedPattern, UntypedStatement,
+        AssignName, AssignmentKind, BitArrayOption, BitArraySize, ClauseGuard, Constant,
+        FunctionBody, Pattern, SrcSpan, Statement, UntypedClauseGuard, UntypedConstant,
+        UntypedExpr, UntypedFunction, UntypedModuleConstant, UntypedPattern, UntypedStatement,
     },
     type_::Error,
 };
@@ -115,7 +115,15 @@ impl<'a> CallGraphBuilder<'a> {
             self.define(name);
         }
 
-        self.statements(&function.body);
+        match &function.body {
+            FunctionBody::None => {}
+            FunctionBody::SingleImplementation(statements) => self.statements(statements),
+            FunctionBody::MultipleImplementations(implementations) => {
+                for implementation in implementations.iter() {
+                    self.statements(&implementation.statements);
+                }
+            }
+        }
 
         self.names = names;
     }

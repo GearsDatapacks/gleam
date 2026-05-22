@@ -1,5 +1,4 @@
 use gleam_core::{
-    analyse::TargetSupport,
     build::{Codegen, Compile, Mode, Options, Target},
     error::{Error, ShellCommandFailureReason},
     paths::ProjectPaths,
@@ -11,7 +10,6 @@ pub fn command(paths: &ProjectPaths) -> Result<(), Error> {
     let _ = crate::build::main(
         paths,
         Options {
-            root_target_support: TargetSupport::Enforced,
             warnings_as_errors: false,
             codegen: Codegen::All,
             compile: Compile::All,

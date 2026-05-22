@@ -2,7 +2,6 @@ use std::rc::Rc;
 
 use gleam_core::{
     Error, Result, Warning,
-    analyse::TargetSupport,
     build::{Codegen, Compile, Mode, Options},
     error::{FileIoAction, FileKind},
     paths::ProjectPaths,
@@ -21,7 +20,6 @@ pub fn run(paths: &ProjectPaths) -> Result<()> {
     let _built = build::main_with_warnings(
         paths,
         Options {
-            root_target_support: TargetSupport::Enforced,
             warnings_as_errors: false,
             codegen: Codegen::DepsOnly,
             compile: Compile::All,

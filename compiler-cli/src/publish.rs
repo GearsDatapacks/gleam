@@ -3,8 +3,7 @@ use ecow::EcoString;
 use flate2::{Compression, write::GzEncoder};
 use gleam_core::{
     Error, Result,
-    analyse::TargetSupport,
-    ast::{CallArg, Statement, TypedExpr, TypedFunction},
+    ast::{CallArg, FunctionBody, Statement, TypedExpr, TypedFunction},
     build::{Codegen, Compile, Mode, Options, Package, Target},
     config::{GleamVersion, PackageConfig, SpdxLicense},
     docs::{Dependency, DependencyKind, DocContext},
@@ -205,8 +204,8 @@ fn check_for_name_squatting(package: &Package) -> Result<(), Error> {
         return Ok(());
     };
 
-    if let Some(first) = &main.body.first()
-        && first.is_println()
+    if let FunctionBody::SingleImplementation(body) = &main.body
+        && body.first().is_println()
     {
         return Err(Error::HexPackageSquatting);
     }
@@ -236,11 +235,15 @@ fn check_for_default_main(package: &Package) -> Result<(), Error> {
 }
 
 fn is_default_main(main: &TypedFunction, package_name: &EcoString) -> bool {
-    if main.body.len() != 1 {
+    let FunctionBody::SingleImplementation(body) = &main.body else {
+        return false;
+    };
+
+    if body.len() != 1 {
         return false;
     }
 
-    let Some(Statement::Expression(expression)) = main.body.first() else {
+    let Statement::Expression(expression) = body.first() else {
         return false;
     };
 
@@ -443,7 +446,6 @@ fn do_build_hex_tarball(paths: &ProjectPaths, config: &mut PackageConfig) -> Res
     let built = build::main(
         paths,
         Options {
-            root_target_support: TargetSupport::Enforced,
             warnings_as_errors: false,
             mode: Mode::Prod,
             target: Some(target),

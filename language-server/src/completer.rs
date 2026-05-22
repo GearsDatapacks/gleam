@@ -1449,11 +1449,7 @@ impl<'a> LocalCompletion<'a> {
         // Add function arguments to completions
         self.visit_fn_arguments(&fun.arguments);
 
-        // Visit the function body statements
-        for statement in &fun.body {
-            // Visit the statement to find local variables
-            self.visit_typed_statement(statement);
-        }
+        self.visit_typed_function_body(&fun.body);
 
         self.completions.into_values().collect_vec()
     }

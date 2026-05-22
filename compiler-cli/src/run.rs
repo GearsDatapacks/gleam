@@ -3,7 +3,6 @@ use std::sync::OnceLock;
 use camino::Utf8PathBuf;
 use ecow::EcoString;
 use gleam_core::{
-    analyse::TargetSupport,
     build::{Built, Codegen, Compile, Mode, NullTelemetry, Options, Runtime, Target, Telemetry},
     config::{DenoFlag, PackageConfig},
     error::Error,
@@ -111,14 +110,6 @@ pub fn setup(
         codegen: Codegen::All,
         mode: Mode::Dev,
         target: Some(target),
-        root_target_support: match package_kind {
-            // The module we want to run is in the root package, so we make sure that the package
-            // can compile successfully for the current target.
-            PackageKind::Root => TargetSupport::Enforced,
-            // On the other hand, if we're trying to run a module that belongs to a dependency, we
-            // only care if the dependency can compile for the current target.
-            PackageKind::Dependency => TargetSupport::NotEnforced,
-        },
         no_print_progress,
     };
 

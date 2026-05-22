@@ -1,7 +1,6 @@
 use pubgrub::Range;
 
 use crate::{
-    analyse::TargetSupport,
     ast::{PIPE_VARIABLE, Publicity},
     build::Target,
     error::edit_distance,
@@ -20,7 +19,6 @@ pub struct EnvironmentArguments<'a> {
     pub current_module: EcoString,
     pub target: Target,
     pub importable_modules: &'a im::HashMap<EcoString, ModuleInterface>,
-    pub target_support: TargetSupport,
     pub current_origin: Origin,
     pub dev_dependencies: &'a HashSet<EcoString>,
 }
@@ -80,10 +78,6 @@ pub struct Environment<'a> {
     /// stack for a variable with that name and mark it as used.
     pub local_variable_usages: Vec<HashMap<EcoString, VariableUsage>>,
 
-    /// Used to determine if all functions/constants need to support the current
-    /// compilation target.
-    pub target_support: TargetSupport,
-
     pub names: Names,
 
     /// Deferred type variable aliases: `(source_generic_id, instantiated_type)`.
@@ -118,7 +112,6 @@ impl<'a> Environment<'a> {
             current_module,
             target,
             importable_modules,
-            target_support,
             current_origin: origin,
             dev_dependencies,
         }: EnvironmentArguments<'a>,
@@ -148,7 +141,6 @@ impl<'a> Environment<'a> {
             importable_modules,
             current_module,
             local_variable_usages: vec![HashMap::new()],
-            target_support,
             names,
             deferred_type_variable_aliases: Vec::new(),
             module_type_aliases: HashMap::new(),

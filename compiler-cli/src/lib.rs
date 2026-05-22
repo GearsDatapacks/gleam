@@ -87,7 +87,6 @@ use clap::{
     builder::{Styles, styling},
 };
 use gleam_core::{
-    analyse::TargetSupport,
     build::{Codegen, Compile, Mode, NullTelemetry, Options, Runtime, Target},
     hex::RetirementReason,
     paths::ProjectPaths,
@@ -922,7 +921,6 @@ fn command_check(paths: &ProjectPaths, target: Option<Target>) -> Result<()> {
     let _ = build::main(
         paths,
         Options {
-            root_target_support: TargetSupport::Enforced,
             warnings_as_errors: false,
             codegen: Codegen::DepsOnly,
             compile: Compile::All,
@@ -949,7 +947,6 @@ fn command_build(
     let _ = build::main(
         paths,
         Options {
-            root_target_support: TargetSupport::Enforced,
             warnings_as_errors,
             codegen: Codegen::All,
             compile: Compile::All,

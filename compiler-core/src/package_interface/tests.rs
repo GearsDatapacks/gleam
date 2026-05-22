@@ -6,7 +6,6 @@ use globset::GlobBuilder;
 use hexpm::version::Identifier;
 
 use crate::{
-    analyse::TargetSupport,
     build::{Module, Origin, Package, Target},
     config::{Docs, ErlangConfig, GleamVersion, JavaScriptConfig, PackageConfig},
     line_numbers::LineNumbers,
@@ -89,7 +88,6 @@ pub fn compile_package(
             warnings: &TypeWarningEmitter::null(),
             direct_dependencies: &std::collections::HashMap::new(),
             dev_dependencies: &std::collections::HashSet::new(),
-            target_support: TargetSupport::Enforced,
             package_config: &config,
         }
         .infer_module(ast, line_numbers, "".into())
@@ -117,7 +115,6 @@ pub fn compile_package(
         warnings: &TypeWarningEmitter::null(),
         direct_dependencies: &direct_dependencies,
         dev_dependencies: &std::collections::HashSet::new(),
-        target_support: TargetSupport::Enforced,
         package_config: &config,
     }
     .infer_module(ast, LineNumbers::new(src), "".into())

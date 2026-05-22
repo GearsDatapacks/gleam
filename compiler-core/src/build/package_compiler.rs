@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use crate::analyse::{ModuleAnalyzerConstructor, TargetSupport};
+use crate::analyse::ModuleAnalyzerConstructor;
 use crate::build::package_loader::CacheFiles;
 
 use crate::error::{DefinedModuleOrigin, FailedModule, SkipReason, SkippedModule};
@@ -69,7 +69,6 @@ pub struct PackageCompiler<'a, IO> {
     pub copy_native_files: bool,
     pub compile_beam_bytecode: bool,
     pub subprocess_stdio: Stdio,
-    pub target_support: TargetSupport,
     pub cached_warnings: CachedWarnings,
     pub check_module_conflicts: CheckModuleConflicts,
 }
@@ -104,7 +103,6 @@ where
             copy_native_files: true,
             compile_beam_bytecode: true,
             subprocess_stdio: Stdio::Inherit,
-            target_support: TargetSupport::NotEnforced,
             cached_warnings: CachedWarnings::Ignore,
             check_module_conflicts: CheckModuleConflicts::DoNotCheck,
         }
@@ -200,7 +198,6 @@ where
             loaded.to_compile,
             existing_modules,
             warnings,
-            self.target_support,
             incomplete_modules,
         );
 
@@ -556,7 +553,6 @@ fn analyse(
     mut parsed_modules: Vec<UncompiledModule>,
     module_types: &mut im::HashMap<EcoString, type_::ModuleInterface>,
     warnings: &WarningEmitter,
-    target_support: TargetSupport,
     incomplete_modules: &mut HashSet<EcoString>,
 ) -> Outcome<Vec<Module>, Error> {
     let mut modules = Vec::with_capacity(parsed_modules.len() + 1);
@@ -635,7 +631,6 @@ fn analyse(
             warnings: &TypeWarningEmitter::new(path.clone(), code.clone(), warnings.clone()),
             direct_dependencies: &direct_dependencies,
             dev_dependencies: &dev_dependencies,
-            target_support,
             package_config,
         }
         .infer_module(ast, line_numbers, path.clone());

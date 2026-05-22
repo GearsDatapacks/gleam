@@ -3,7 +3,6 @@ mod generated_tests;
 
 use camino::Utf8PathBuf;
 use gleam_core::{
-    analyse::TargetSupport,
     build::{Codegen, Compile, Mode, NullTelemetry, Options, ProjectCompiler, Telemetry},
     config::PackageConfig,
     io::{FileSystemReader, FileSystemWriter},
@@ -28,7 +27,6 @@ pub fn prepare(path: &str, mode: Mode) -> String {
         compile: Compile::All,
         codegen: Codegen::All,
         warnings_as_errors: false,
-        root_target_support: TargetSupport::Enforced,
         no_print_progress: true,
     };
 

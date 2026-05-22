@@ -3,7 +3,6 @@ use std::sync::Arc;
 use camino::Utf8PathBuf;
 use ecow::EcoString;
 
-use crate::analyse::TargetSupport;
 use crate::build::{ExpressionPosition, Origin, Target};
 use crate::config::PackageConfig;
 use crate::line_numbers::LineNumbers;
@@ -51,7 +50,6 @@ fn compile_module(src: &str) -> TypedModule {
         warnings: &TypeWarningEmitter::null(),
         direct_dependencies: &std::collections::HashMap::new(),
         dev_dependencies: &std::collections::HashSet::new(),
-        target_support: TargetSupport::Enforced,
         package_config: &config,
     }
     .infer_module(ast, line_numbers, "".into())
@@ -86,7 +84,6 @@ fn compile_expression(src: &str) -> TypedStatement {
         current_module: "mymod".into(),
         target: Target::Erlang,
         importable_modules: &modules,
-        target_support: TargetSupport::Enforced,
         current_origin: Origin::Src,
         dev_dependencies: &dev_dependencies,
     }

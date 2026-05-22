@@ -1,9 +1,7 @@
 use ecow::EcoString;
 use itertools::Itertools;
 
-use crate::{
-    analyse::TargetSupport, assert_module_error, build::Target, type_::expression::Implementations,
-};
+use crate::{assert_module_error, build::Target, type_::expression::Implementations};
 
 use super::compile_module_with_opts;
 
@@ -19,22 +17,14 @@ macro_rules! assert_targets {
 }
 
 pub fn implementations(src: &str) -> Vec<(EcoString, Implementations)> {
-    compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::Erlang,
-        TargetSupport::NotEnforced,
-        None,
-    )
-    .expect("compile src")
-    .type_info
-    .values
-    .into_iter()
-    .map(|(name, value)| (name, value.variant.implementations()))
-    .sorted()
-    .collect_vec()
+    compile_module_with_opts("test_module", src, None, vec![], Target::Erlang, None)
+        .expect("compile src")
+        .type_info
+        .values
+        .into_iter()
+        .map(|(name, value)| (name, value.variant.implementations()))
+        .sorted()
+        .collect_vec()
 }
 
 #[test]
@@ -314,15 +304,7 @@ pub fn no_valid_erlang_impl() {
   javascript_only()
 }
 "#;
-    let out = compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::Erlang,
-        TargetSupport::Enforced,
-        None,
-    );
+    let out = compile_module_with_opts("test_module", src, None, vec![], Target::Erlang, None);
     assert!(out.into_result().is_err());
 }
 
@@ -341,15 +323,7 @@ pub fn no_valid_javascript_impl() {
   erlang_only()
 }
 "#;
-    let out = compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::JavaScript,
-        TargetSupport::Enforced,
-        None,
-    );
+    let out = compile_module_with_opts("test_module", src, None, vec![], Target::JavaScript, None);
     assert!(out.into_result().is_err());
 }
 
@@ -368,15 +342,7 @@ pub fn no_valid_erlang_impl() {
   both_external()
 }
 "#;
-    let out = compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::Erlang,
-        TargetSupport::Enforced,
-        None,
-    );
+    let out = compile_module_with_opts("test_module", src, None, vec![], Target::Erlang, None);
     assert!(out.into_result().is_err());
 }
 
@@ -395,15 +361,7 @@ pub fn no_valid_javascript_impl() {
   both_external()
 }
 "#;
-    let out = compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::JavaScript,
-        TargetSupport::Enforced,
-        None,
-    );
+    let out = compile_module_with_opts("test_module", src, None, vec![], Target::JavaScript, None);
     assert!(out.into_result().is_err());
 }
 
@@ -418,15 +376,7 @@ pub fn no_valid_erlang_impl() {
   javascript_only()
 }
 "#;
-    let out = compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::Erlang,
-        TargetSupport::Enforced,
-        None,
-    );
+    let out = compile_module_with_opts("test_module", src, None, vec![], Target::Erlang, None);
     assert!(out.into_result().is_err());
 }
 
@@ -441,14 +391,6 @@ pub fn no_valid_javascript_impl() {
   erlang_only()
 }
 "#;
-    let out = compile_module_with_opts(
-        "test_module",
-        src,
-        None,
-        vec![],
-        Target::JavaScript,
-        TargetSupport::Enforced,
-        None,
-    );
+    let out = compile_module_with_opts("test_module", src, None, vec![], Target::JavaScript, None);
     assert!(out.into_result().is_err());
 }

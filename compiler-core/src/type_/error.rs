@@ -418,7 +418,7 @@ pub enum Error {
     },
 
     /// A function/constant that is used doesn't have an implementation for the
-    /// current compilation target.
+    /// expected target of the current implementation.
     UnsupportedExpressionTarget {
         location: SrcSpan,
         target: Target,
@@ -487,18 +487,7 @@ pub enum Error {
         name: EcoString,
     },
 
-    /// A public function doesn't have an implementation for the current target.
-    /// This is only raised when compiling a package with `TargetSupport::Enforced`, which is
-    /// typically the root package, deps not being enforced.
-    ///
-    /// For example, if compiling to Erlang:
-    ///
-    /// ```gleam
-    /// @external(javascript, "one", "two")
-    /// pub fn wobble() -> Int
-    /// ```
-    UnsupportedPublicFunctionTarget {
-        target: Target,
+    FunctionSupportsNoTargets {
         name: EcoString,
         location: SrcSpan,
     },
@@ -1356,7 +1345,7 @@ impl Error {
             | Error::InexhaustiveLetAssignment { location, .. }
             | Error::UnusedTypeAliasParameter { location, .. }
             | Error::DuplicateTypeParameter { location, .. }
-            | Error::UnsupportedPublicFunctionTarget { location, .. }
+            | Error::FunctionSupportsNoTargets { location, .. }
             | Error::NotFnInUse { location, .. }
             | Error::UseCallbackIncorrectArity {
                 pattern_location: location,

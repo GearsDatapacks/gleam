@@ -4332,19 +4332,19 @@ The missing patterns are:\n",
             location,
             target: current_target,
         } => {
+            let target = match current_target {
+                Target::Erlang => "Erlang",
+                Target::JavaScript => "JavaScript",
+            };
             let text = wrap_format!(
-                "This value is not available as it is defined using externals, \
-and there is no implementation for the {} target.",
-                match current_target {
-                    Target::Erlang => "Erlang",
-                    Target::JavaScript => "JavaScript",
-                }
+                "The current implementation is supposed to run on the {target} \
+target, but this value is not available as it is defined using externals, \
+and there is no implementation for the {target} target.",
             );
-            let hint = wrap("Did you mean to build for a different target?");
             Diagnostic {
                 title: "Unsupported target".into(),
                 text,
-                hint: Some(hint),
+                hint: None,
                 level: Level::Error,
                 location: Some(Location {
                     path: path.clone(),
@@ -4358,22 +4358,13 @@ and there is no implementation for the {} target.",
             }
         }
 
-        TypeError::UnsupportedPublicFunctionTarget {
-            location,
-            name,
-            target,
-        } => {
-            let target = match target {
-                Target::Erlang => "Erlang",
-                Target::JavaScript => "JavaScript",
-            };
+        TypeError::FunctionSupportsNoTargets { location, name } => {
             let text = wrap_format!(
-                "The `{name}` function is public but doesn't have an \
-implementation for the {target} target. All public functions of a package \
-must be able to compile for a module to be valid."
+                "The `{name}` function has calls to conflicting functions, meaning
+it cannot run on any target."
             );
             Diagnostic {
-                title: "Unsupported target".into(),
+                title: "Function supports no targets".into(),
                 text,
                 hint: None,
                 level: Level::Error,

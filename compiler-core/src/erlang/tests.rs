@@ -2,7 +2,6 @@ use std::time::SystemTime;
 
 use camino::Utf8PathBuf;
 
-use crate::analyse::TargetSupport;
 use crate::config::PackageConfig;
 use crate::type_::PRELUDE_MODULE_NAME;
 use crate::warning::WarningEmitter;
@@ -78,7 +77,6 @@ pub fn compile_test_project(
             warnings: &TypeWarningEmitter::null(),
             direct_dependencies: &std::collections::HashMap::new(),
             dev_dependencies: &std::collections::HashSet::new(),
-            target_support: TargetSupport::NotEnforced,
             package_config: &dep_config,
         }
         .infer_module(ast, line_numbers, "".into())
@@ -102,7 +100,6 @@ pub fn compile_test_project(
         warnings: &TypeWarningEmitter::null(),
         direct_dependencies: &direct_dependencies,
         dev_dependencies: &std::collections::HashSet::new(),
-        target_support: TargetSupport::NotEnforced,
         package_config: &config,
     }
     .infer_module(ast, line_numbers, path.clone())

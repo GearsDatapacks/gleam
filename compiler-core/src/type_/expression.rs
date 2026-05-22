@@ -4,15 +4,15 @@ use crate::{
     analyse::{Inferred, infer_bit_array_option, name::check_argument_names},
     ast::{
         Arg, Assert, Assignment, AssignmentKind, BinOp, BitArrayOption, BitArraySegment,
-        CAPTURE_VARIABLE, CallArg, Clause, ClauseGuard, Constant, FunctionLiteralKind, HasLocation,
-        ImplicitCallArgOrigin, InvalidExpression, Layer, RECORD_UPDATE_VARIABLE,
-        RecordBeingUpdated, SrcSpan, Statement, TodoKind, TypeAst, TypedArg, TypedAssert,
-        TypedAssignment, TypedClause, TypedClauseGuard, TypedConstant, TypedExpr,
-        TypedMultiPattern, TypedStatement, USE_ASSIGNMENT_VARIABLE, UntypedArg, UntypedAssert,
-        UntypedAssignment, UntypedClause, UntypedClauseGuard, UntypedConstant,
-        UntypedConstantBitArraySegment, UntypedExpr, UntypedExprBitArraySegment,
-        UntypedMultiPattern, UntypedStatement, UntypedUse, UntypedUseAssignment, Use,
-        UseAssignment,
+        CAPTURE_VARIABLE, CallArg, Clause, ClauseGuard, Constant, FunctionImplementation,
+        FunctionLiteralKind, HasLocation, ImplementationTarget, ImplicitCallArgOrigin,
+        InvalidExpression, Layer, RECORD_UPDATE_VARIABLE, RecordBeingUpdated, SrcSpan, Statement,
+        TodoKind, TypeAst, TypedArg, TypedAssert, TypedAssignment, TypedClause, TypedClauseGuard,
+        TypedConstant, TypedExpr, TypedFunctionImplementation, TypedMultiPattern, TypedStatement,
+        USE_ASSIGNMENT_VARIABLE, UntypedArg, UntypedAssert, UntypedAssignment, UntypedClause,
+        UntypedClauseGuard, UntypedConstant, UntypedConstantBitArraySegment, UntypedExpr,
+        UntypedExprBitArraySegment, UntypedFunctionImplementation, UntypedMultiPattern,
+        UntypedStatement, UntypedUse, UntypedUseAssignment, Use, UseAssignment,
     },
     build::Target,
     exhaustiveness::{self, CompileCaseResult, CompiledCase, Reachability},
@@ -65,6 +65,10 @@ impl Implementations {
             uses_javascript_externals: false,
             uses_erlang_externals: false,
         }
+    }
+
+    pub fn supports_no_targets(&self) -> bool {
+        !self.can_run_on_erlang && !self.can_run_on_javascript
     }
 }
 
@@ -143,7 +147,7 @@ impl Purity {
             // If we call an impure function from a function we don't know the
             // purity of, we are now certain that it is impure.
             (Purity::Unknown, Purity::Impure) => Purity::Impure,
-            (Purity::Unknown, _) => Purity::Impure,
+            (Purity::Unknown, _) => Purity::Unknown,
         }
     }
 }
@@ -299,6 +303,8 @@ pub(crate) struct ExprTyper<'a, 'b> {
 
     // Accumulated errors and warnings found while typing the expression
     pub(crate) problems: &'a mut Problems,
+
+    pub(crate) analysis_target: Option<Target>,
 }
 
 impl<'a, 'b> ExprTyper<'a, 'b> {
@@ -329,7 +335,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             // The standard library uses a lot of FFI, but as we are the
             // maintainers we know that it can be trusted to be pure.
             Purity::TrustedPure
-        } else if uses_externals {
+        } else if uses_externals || !definition.has_body {
             Purity::Impure
         } else {
             Purity::Pure
@@ -346,6 +352,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             current_function_definition: definition,
             minimum_required_version: Version::new(0, 1, 0),
             problems,
+            analysis_target: None,
         }
     }
 
@@ -1332,21 +1339,19 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         self.implementations
             .update_from_use(variant_implementations, &self.current_function_definition);
 
-        if self.environment.target_support.is_enforced()
-            // If the value used doesn't have an implementation that can be used
-            // for the current target...
-            && !variant_implementations.supports(self.environment.target)
-            // ... and there is not an external implementation for it
-            && !self
-                    .current_function_definition
-                    .has_external_for_target(self.environment.target)
-        {
-            Err(Error::UnsupportedExpressionTarget {
-                target: self.environment.target,
-                location,
-            })
-        } else {
+        let (target, supports_current_target) = match self.analysis_target {
+            Some(Target::JavaScript) => (
+                Target::JavaScript,
+                variant_implementations.can_run_on_javascript,
+            ),
+            Some(Target::Erlang) => (Target::Erlang, variant_implementations.can_run_on_erlang),
+            None => return Ok(()),
+        };
+
+        if supports_current_target {
             Ok(())
+        } else {
+            Err(Error::UnsupportedExpressionTarget { location, target })
         }
     }
 
@@ -5108,62 +5113,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         }
 
         self.in_new_scope(|body_typer| {
-            // Used to track if any argument names are used more than once
-            let mut argument_names = HashSet::with_capacity(arguments.len());
-
-            for (argument_index, argument) in arguments.iter().enumerate() {
-                match &argument.names {
-                    ArgNames::Named { name, location }
-                    | ArgNames::NamedLabelled {
-                        name,
-                        name_location: location,
-                        ..
-                    } => {
-                        // Check that this name has not already been used for
-                        // another argument
-                        if !argument_names.insert(name) {
-                            return Err(Error::ArgumentNameAlreadyUsed {
-                                location: argument.location,
-                                name: name.clone(),
-                            });
-                        }
-
-                        let syntax = if name == CAPTURE_VARIABLE {
-                            VariableSyntax::Generated
-                        } else {
-                            VariableSyntax::Variable(name.clone())
-                        };
-
-                        let origin = VariableOrigin {
-                            syntax,
-                            declaration: VariableDeclaration::FunctionParameter {
-                                function_name: function_name.clone(),
-                                index: argument_index,
-                            },
-                        };
-
-                        // Insert a variable for the argument into the environment
-                        body_typer.environment.insert_local_variable(
-                            name.clone(),
-                            *location,
-                            origin.clone(),
-                            argument.type_.clone(),
-                        );
-
-                        if !body.is_empty() {
-                            // Register the variable in the usage tracker so that we
-                            // can identify if it is unused
-                            body_typer.environment.init_usage(
-                                name.clone(),
-                                origin,
-                                *location,
-                                body_typer.problems,
-                            );
-                        }
-                    }
-                    ArgNames::Discard { .. } | ArgNames::LabelledDiscard { .. } => (),
-                };
-            }
+            body_typer.check_function_arguments(function_name.as_ref(), &arguments, true)?;
 
             if let Ok(body) = Vec1::try_from_vec(body) {
                 let mut body = body_typer.infer_statements(body);
@@ -5199,6 +5149,149 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             } else {
                 Ok((arguments, vec![]))
             }
+        })
+    }
+
+    pub fn check_function_arguments(
+        &mut self,
+        function_name: Option<&EcoString>,
+        arguments: &Vec<TypedArg>,
+        register_in_scope: bool,
+    ) -> Result<(), Error> {
+        // Used to track if any argument names are used more than once
+        let mut argument_names = HashSet::with_capacity(arguments.len());
+
+        for (argument_index, argument) in arguments.iter().enumerate() {
+            match &argument.names {
+                ArgNames::Named { name, location }
+                | ArgNames::NamedLabelled {
+                    name,
+                    name_location: location,
+                    ..
+                } => {
+                    // Check that this name has not already been used for
+                    // another argument
+                    if !argument_names.insert(name) {
+                        return Err(Error::ArgumentNameAlreadyUsed {
+                            location: argument.location,
+                            name: name.clone(),
+                        });
+                    }
+
+                    let syntax = if name == CAPTURE_VARIABLE {
+                        VariableSyntax::Generated
+                    } else {
+                        VariableSyntax::Variable(name.clone())
+                    };
+
+                    let origin = VariableOrigin {
+                        syntax,
+                        declaration: VariableDeclaration::FunctionParameter {
+                            function_name: function_name.cloned(),
+                            index: argument_index,
+                        },
+                    };
+
+                    // Insert a variable for the argument into the environment
+                    self.environment.insert_local_variable(
+                        name.clone(),
+                        *location,
+                        origin.clone(),
+                        argument.type_.clone(),
+                    );
+
+                    if register_in_scope {
+                        // Register the variable in the usage tracker so that we
+                        // can identify if it is unused
+                        self.environment
+                            .init_usage(name.clone(), origin, *location, self.problems);
+                    }
+                }
+                ArgNames::Discard { .. } | ArgNames::LabelledDiscard { .. } => (),
+            };
+        }
+        Ok(())
+    }
+
+    pub fn infer_function_implementations(
+        &mut self,
+        function_name: EcoString,
+        arguments: Vec<TypedArg>,
+        implementations: Vec1<UntypedFunctionImplementation>,
+        return_type: Arc<Type>,
+    ) -> Result<Vec<TypedFunctionImplementation>, Error> {
+        self.in_new_scope(|body_typer| {
+            let mut implementations_information = Implementations {
+                gleam: false,
+                can_run_on_erlang: body_typer.implementations.uses_erlang_externals,
+                can_run_on_javascript: body_typer.implementations.uses_javascript_externals,
+                uses_erlang_externals: body_typer.implementations.uses_erlang_externals,
+                uses_javascript_externals: body_typer.implementations.uses_javascript_externals,
+            };
+            body_typer.check_function_arguments(Some(&function_name), &arguments, true)?;
+
+            let implementations = implementations
+                .into_iter()
+                .map(|implementation| {
+                    body_typer.analysis_target = implementation.target.to_target();
+
+                    body_typer.in_new_scope(|implementation_typer| {
+                        implementation_typer.implementations = Implementations::supporting_all();
+                        let mut statements =
+                            implementation_typer.infer_statements(implementation.statements);
+
+                        // Check that any return type is accurate.
+                        if let Err(error) = unify(return_type.clone(), statements.last().type_()) {
+                            let error = error
+                                .return_annotation_mismatch()
+                                .into_error(statements.last().type_defining_location());
+                            implementation_typer.problems.error(error);
+
+                            // If the return type doesn't match with the annotation we
+                            // add a new expression to the end of the function to match
+                            // the annotated type and allow type inference to keep
+                            // going.
+                            statements.push(Statement::Expression(TypedExpr::Invalid {
+                                // This is deliberately an empty span since this
+                                // placeholder expression is implicitly inserted by the
+                                // compiler and doesn't actually appear in the source
+                                // code.
+                                location: SrcSpan {
+                                    start: statements.last().location().end,
+                                    end: statements.last().location().end,
+                                },
+                                type_: implementation_typer.new_unbound_var(),
+                                extra_information: None,
+                            }))
+                        };
+
+                        match implementation.target {
+                            ImplementationTarget::JavaScript => {
+                                implementations_information.can_run_on_javascript = true
+                            }
+                            ImplementationTarget::Erlang => {
+                                implementations_information.can_run_on_erlang = true
+                            }
+                            ImplementationTarget::Gleam => {
+                                implementations_information.gleam =
+                                    implementation_typer.implementations.gleam;
+                                implementations_information.can_run_on_erlang =
+                                    implementation_typer.implementations.can_run_on_erlang;
+                                implementations_information.can_run_on_javascript =
+                                    implementation_typer.implementations.can_run_on_javascript;
+                            }
+                        };
+
+                        Ok(FunctionImplementation {
+                            target: implementation.target,
+                            location: implementation.location,
+                            statements,
+                        })
+                    })
+                })
+                .collect::<Result<_, _>>();
+            body_typer.implementations = implementations_information;
+            implementations
         })
     }
 

@@ -59,14 +59,14 @@ use crate::analyse::Inferred;
 use crate::ast::{
     Arg, ArgNames, Assert, AssignName, Assignment, AssignmentKind, BinOp, BitArrayOption,
     BitArraySegment, BitArraySize, CAPTURE_VARIABLE, CallArg, Clause, ClauseGuard, Constant,
-    CustomType, Definition, Function, FunctionLiteralKind, HasLocation, Import, IntOperator,
-    Module, ModuleConstant, Pattern, Publicity, RecordBeingUpdated, RecordConstructor,
-    RecordConstructorArg, RecordUpdateArg, SrcSpan, Statement, TailPattern, TargetedDefinition,
-    TodoKind, TypeAlias, TypeAst, TypeAstConstructor, TypeAstConstructorName, TypeAstFn,
-    TypeAstHole, TypeAstTuple, TypeAstVar, UnqualifiedImport, UntypedArg, UntypedClause,
-    UntypedClauseGuard, UntypedConstant, UntypedDefinition, UntypedExpr, UntypedModule,
-    UntypedPattern, UntypedRecordUpdateArg, UntypedStatement, UntypedUseAssignment, Use,
-    UseAssignment,
+    CustomType, Definition, Function, FunctionBody, FunctionImplementation, FunctionLiteralKind,
+    HasLocation, ImplementationTarget, Import, IntOperator, Module, ModuleConstant, Pattern,
+    Publicity, RecordBeingUpdated, RecordConstructor, RecordConstructorArg, RecordUpdateArg,
+    SrcSpan, Statement, TailPattern, TargetedDefinition, TodoKind, TypeAlias, TypeAst,
+    TypeAstConstructor, TypeAstConstructorName, TypeAstFn, TypeAstHole, TypeAstTuple, TypeAstVar,
+    UnqualifiedImport, UntypedArg, UntypedClause, UntypedClauseGuard, UntypedConstant,
+    UntypedDefinition, UntypedExpr, UntypedModule, UntypedPattern, UntypedRecordUpdateArg,
+    UntypedStatement, UntypedUseAssignment, Use, UseAssignment,
 };
 use crate::build::Target;
 use crate::error::wrap;
@@ -758,8 +758,14 @@ where
                         end_position,
                         ..
                     })) => {
-                        let Ok(body) = Vec1::try_from_vec(body) else {
-                            return parse_error(ParseErrorType::ExpectedFunctionBody, location);
+                        let body = match body {
+                            FunctionBody::None => {
+                                return parse_error(ParseErrorType::ExpectedFunctionBody, location);
+                            }
+                            FunctionBody::SingleImplementation(body) => body,
+                            FunctionBody::MultipleImplementations(_) => {
+                                return parse_error(ParseErrorType::ExpectedFunctionBody, location);
+                            }
                         };
 
                         UntypedExpr::Fn {
@@ -2195,7 +2201,26 @@ where
 
         let return_annotation = self.parse_type_annotation(&Token::RArrow)?;
 
+        let end = return_annotation
+            .as_ref()
+            .map(|l| l.location().end)
+            .unwrap_or(rpar_e);
+
         let (body_start, body, end, end_position) = match self.maybe_one(&Token::LeftBrace) {
+            Some((left_brace_start, _))
+                if let Some(implementations) =
+                    self.parse_function_implementations(start, end)? =>
+            {
+                let (_, right_brace_end) = self.expect_one(&Token::RightBrace)?;
+
+                (
+                    Some(left_brace_start),
+                    FunctionBody::MultipleImplementations(implementations),
+                    end,
+                    right_brace_end,
+                )
+            }
+
             Some((left_brace_start, _)) => {
                 let some_body = self.parse_statement_seq()?;
                 let (_, right_brace_end) = self.expect_one(&Token::RightBrace)?;
@@ -2204,23 +2229,19 @@ where
                     .map(|l| l.location().end)
                     .unwrap_or(rpar_e);
                 let body = match some_body {
-                    None => vec![Statement::Expression(UntypedExpr::Todo {
-                        kind: TodoKind::EmptyFunction {
-                            function_location: SrcSpan { start, end },
-                        },
-                        location: SrcSpan {
-                            start: left_brace_start + 1,
-                            end: right_brace_end,
-                        },
-                        message: None,
-                    })],
-                    Some((body, _)) => body.to_vec(),
+                    None => vec1![self.placeholder(start, end, left_brace_start, right_brace_end)],
+                    Some((body, _)) => body,
                 };
 
-                (Some(left_brace_start), body, end, right_brace_end)
+                (
+                    Some(left_brace_start),
+                    FunctionBody::SingleImplementation(body),
+                    end,
+                    right_brace_end,
+                )
             }
 
-            None => (None, vec![], rpar_e, rpar_e),
+            None => (None, FunctionBody::None, rpar_e, rpar_e),
         };
 
         Ok(Some(Definition::Function(Function {
@@ -2246,6 +2267,64 @@ where
             },
             purity: Purity::Pure,
         })))
+    }
+
+    fn parse_function_implementations(
+        &mut self,
+        start: u32,
+        end: u32,
+    ) -> Result<Option<Vec1<FunctionImplementation<(), UntypedExpr>>>, ParseError> {
+        let mut implementations = vec![];
+
+        while let Some((_, Token::At, _)) = self.tok0
+            && let Some((_, Token::Name { name }, _)) = &self.tok1
+            && name == "on"
+        {
+            let (at_start, _, _) = self
+                .next_tok()
+                .expect("Already checked that the next token is Some");
+            self.advance();
+            let (bracket_start, bracket_end) = self.expect_one(&Token::LeftParen)?;
+            let target =
+                self.expect_implementation_target(SrcSpan::new(bracket_start, bracket_end))?;
+            _ = self.expect_one(&Token::RightParen)?;
+            let (left_brace_start, _) = self.expect_one(&Token::LeftBrace)?;
+            let statements = self.parse_statement_seq()?;
+            let (_, right_brace_end) = self.expect_one(&Token::RightBrace)?;
+            let statements = match statements {
+                Some((statements, _)) => statements,
+                None => vec1![self.placeholder(start, end, left_brace_start, right_brace_end)],
+            };
+            implementations.push(FunctionImplementation {
+                target,
+                location: SrcSpan::new(at_start, right_brace_end),
+                statements,
+            });
+        }
+
+        match Vec1::try_from_vec(implementations) {
+            Ok(implementations) => Ok(Some(implementations)),
+            Err(_) => Ok(None),
+        }
+    }
+
+    fn placeholder(
+        &self,
+        start: u32,
+        end: u32,
+        left_brace_start: u32,
+        right_brace_end: u32,
+    ) -> UntypedStatement {
+        Statement::Expression(UntypedExpr::Todo {
+            kind: TodoKind::EmptyFunction {
+                function_location: SrcSpan { start, end },
+            },
+            location: SrcSpan {
+                start: left_brace_start + 1,
+                end: right_brace_end,
+            },
+            message: None,
+        })
     }
 
     fn add_anon_function_hint(&self, mut err: ParseError) -> ParseError {
@@ -4275,6 +4354,28 @@ functions are declared separately from types.";
                         });
                     Ok(Target::Erlang)
                 }
+                _ => parse_error(ParseErrorType::UnknownTarget, SrcSpan::new(start, end)),
+            }
+        } else {
+            parse_error(ParseErrorType::ExpectedTargetName, paren_location)
+        }
+    }
+
+    fn expect_implementation_target(
+        &mut self,
+        paren_location: SrcSpan,
+    ) -> Result<ImplementationTarget, ParseError> {
+        let (start, t, end) = match self.next_tok() {
+            Some(t) => t,
+            None => {
+                return parse_error(ParseErrorType::UnexpectedEof, SrcSpan { start: 0, end: 0 });
+            }
+        };
+        if let Token::Name { name } = t {
+            match name.as_str() {
+                "javascript" => Ok(ImplementationTarget::JavaScript),
+                "erlang" => Ok(ImplementationTarget::Erlang),
+                "gleam" => Ok(ImplementationTarget::Gleam),
                 _ => parse_error(ParseErrorType::UnknownTarget, SrcSpan::new(start, end)),
             }
         } else {

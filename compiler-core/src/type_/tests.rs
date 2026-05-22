@@ -1,6 +1,5 @@
 use super::*;
 use crate::{
-    analyse::TargetSupport,
     ast::{TypedModule, TypedStatement, UntypedExpr, UntypedModule},
     build::{Origin, Outcome, Target},
     config::{GleamVersion, PackageConfig},
@@ -195,7 +194,6 @@ fn get_warnings(
         Some(Rc::new(warnings.clone())),
         deps,
         target,
-        TargetSupport::NotEnforced,
         gleam_version,
     );
     warnings.take().into_iter().collect_vec()
@@ -381,7 +379,6 @@ fn compile_statement_sequence(
         current_module: "themodule".into(),
         target: Target::Erlang,
         importable_modules: &modules,
-        target_support: TargetSupport::Enforced,
         current_origin: Origin::Src,
         dev_dependencies: &dev_dependencies,
     }
@@ -433,16 +430,8 @@ pub fn infer_module_with_target(
     dep: Vec<DependencyModule<'_>>,
     target: Target,
 ) -> Vec<(EcoString, String)> {
-    let ast = compile_module_with_opts(
-        module_name,
-        src,
-        None,
-        dep,
-        target,
-        TargetSupport::NotEnforced,
-        None,
-    )
-    .expect("should successfully infer");
+    let ast = compile_module_with_opts(module_name, src, None, dep, target, None)
+        .expect("should successfully infer");
     ast.type_info
         .values
         .iter()
@@ -461,15 +450,7 @@ pub fn compile_module(
     warnings: Option<Rc<dyn WarningEmitterIO>>,
     dep: Vec<DependencyModule<'_>>,
 ) -> Outcome<TypedModule, Vec1<super::Error>> {
-    compile_module_with_opts(
-        module_name,
-        src,
-        warnings,
-        dep,
-        Target::Erlang,
-        TargetSupport::NotEnforced,
-        None,
-    )
+    compile_module_with_opts(module_name, src, warnings, dep, Target::Erlang, None)
 }
 
 pub fn compile_module_with_opts(
@@ -478,7 +459,6 @@ pub fn compile_module_with_opts(
     warnings: Option<Rc<dyn WarningEmitterIO>>,
     dep: Vec<DependencyModule<'_>>,
     target: Target,
-    target_support: TargetSupport,
     gleam_version: Option<Range<Version>>,
 ) -> Outcome<TypedModule, Vec1<super::Error>> {
     let ids = UniqueIdGenerator::new();
@@ -511,7 +491,6 @@ pub fn compile_module_with_opts(
             warnings: &TypeWarningEmitter::null(),
             direct_dependencies: &HashMap::new(),
             dev_dependencies: &HashSet::new(),
-            target_support,
             package_config: &config,
         }
         .infer_module(ast, line_numbers, "".into())
@@ -540,7 +519,6 @@ pub fn compile_module_with_opts(
         warnings: &warnings,
         direct_dependencies: &direct_dependencies,
         dev_dependencies: &HashSet::from_iter(["dev_dependency".into()]),
-        target_support: TargetSupport::Enforced,
         package_config: &config,
     }
     .infer_module(ast, LineNumbers::new(src), "".into())
@@ -555,15 +533,7 @@ pub fn module_error_with_target(
     deps: Vec<DependencyModule<'_>>,
     target: Target,
 ) -> String {
-    let outcome = compile_module_with_opts(
-        "themodule",
-        src,
-        None,
-        deps,
-        target,
-        TargetSupport::NotEnforced,
-        None,
-    );
+    let outcome = compile_module_with_opts("themodule", src, None, deps, target, None);
 
     let (error, names) = match outcome {
         Outcome::Ok(_) => panic!("should infer an error"),
@@ -601,7 +571,6 @@ pub fn internal_module_error_with_target(
         None,
         deps,
         target,
-        TargetSupport::NotEnforced,
         None,
     );
 
@@ -803,7 +772,6 @@ fn infer_module_type_retention_test() {
         warnings: &TypeWarningEmitter::null(),
         direct_dependencies: &direct_dependencies,
         dev_dependencies: &HashSet::new(),
-        target_support: TargetSupport::Enforced,
         package_config: &config,
     }
     .infer_module(module, LineNumbers::new(""), "".into())

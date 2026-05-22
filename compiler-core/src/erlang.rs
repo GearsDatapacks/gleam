@@ -489,7 +489,15 @@ fn module_function<'a>(
                 arguments.clone()
             ]
         })
-        .unwrap_or_else(|| statement_sequence(&function.body, &mut env));
+        .unwrap_or_else(|| {
+            statement_sequence(
+                function
+                    .body
+                    .for_target(Target::Erlang)
+                    .expect("Function supports the Erlang target"),
+                &mut env,
+            )
+        });
 
     let attributes = file_attribute;
     let attributes = if is_internal_module || function.publicity.is_internal() {

@@ -927,12 +927,31 @@ impl<'comments> Formatter<'comments> {
             None => signature,
         };
 
-        if body.is_empty() {
-            return docvec![attributes, signature.group()];
-        }
-
         // Format body and add any trailing comments
-        let body = self.statements(body);
+        let body = match body {
+            FunctionBody::None => return docvec![attributes, signature.group()],
+            FunctionBody::SingleImplementation(body) => self.statements(body),
+            FunctionBody::MultipleImplementations(implementations) => join(
+                implementations.iter().map(|implementation| {
+                    let target = match implementation.target {
+                        ImplementationTarget::JavaScript => "javascript",
+                        ImplementationTarget::Erlang => "erlang",
+                        ImplementationTarget::Gleam => "gleam",
+                    };
+                    docvec![
+                        "@on(",
+                        target,
+                        ") {",
+                        line()
+                            .append(self.statements(&implementation.statements))
+                            .nest(INDENT),
+                        line(),
+                        "}"
+                    ]
+                }),
+                lines(2),
+            ),
+        };
         let body = match printed_comments(self.pop_comments(*end_position), false) {
             Some(comments) => body.append(line()).append(comments),
             None => body,

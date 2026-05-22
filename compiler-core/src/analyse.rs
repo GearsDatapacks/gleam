@@ -7,13 +7,13 @@ mod tests;
 use crate::{
     GLEAM_CORE_PACKAGE_NAME, STDLIB_PACKAGE_NAME,
     ast::{
-        self, Arg, BitArrayOption, CustomType, DefinitionLocation, Function, GroupedDefinitions,
-        Import, ModuleConstant, Publicity, RecordConstructor, RecordConstructorArg, SrcSpan,
-        Statement, TypeAlias, TypeAst, TypeAstConstructor, TypeAstFn, TypeAstHole, TypeAstTuple,
-        TypeAstVar, TypedCustomType, TypedDefinitions, TypedExpr, TypedFunction, TypedImport,
-        TypedModule, TypedModuleConstant, TypedTypeAlias, UntypedArg, UntypedCustomType,
-        UntypedFunction, UntypedImport, UntypedModule, UntypedModuleConstant, UntypedStatement,
-        UntypedTypeAlias,
+        self, Arg, BitArrayOption, CustomType, DefinitionLocation, Function, FunctionBody,
+        GroupedDefinitions, Import, ModuleConstant, Publicity, RecordConstructor,
+        RecordConstructorArg, SrcSpan, Statement, TypeAlias, TypeAst, TypeAstConstructor,
+        TypeAstFn, TypeAstHole, TypeAstTuple, TypeAstVar, TypedCustomType, TypedDefinitions,
+        TypedExpr, TypedFunction, TypedImport, TypedModule, TypedModuleConstant, TypedTypeAlias,
+        UntypedArg, UntypedCustomType, UntypedFunction, UntypedFunctionBody, UntypedImport,
+        UntypedModule, UntypedModuleConstant, UntypedTypeAlias,
     },
     build::{Origin, Outcome, Target},
     call_graph::{CallGraphNode, into_dependency_order},
@@ -48,7 +48,7 @@ use std::{
     ops::Deref,
     sync::{Arc, OnceLock},
 };
-use vec1::Vec1;
+use vec1::{Vec1, vec1};
 
 use self::imports::Importer;
 
@@ -100,36 +100,6 @@ impl Inferred<PatternConstructor> {
     }
 }
 
-/// How the compiler should treat target support.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TargetSupport {
-    /// Target support is enfored, meaning if a function is found to not have an implementation for
-    /// the current target then an error is emitted and compilation halts.
-    ///
-    /// This is used when compiling the root package, with the exception of when using
-    /// `gleam run --module $module` to run a module from a dependency package, in which case we do
-    /// not want to error as the root package code isn't going to be run.
-    Enforced,
-    /// Target support is enfored, meaning if a function is found to not have an implementation for
-    /// the current target it will continue onwards and not generate any code for this function.
-    ///
-    /// This is used when compiling dependencies.
-    NotEnforced,
-}
-
-impl TargetSupport {
-    /// Returns `true` if the target support is [`Enforced`].
-    ///
-    /// [`Enforced`]: TargetSupport::Enforced
-    #[must_use]
-    pub fn is_enforced(&self) -> bool {
-        match self {
-            Self::Enforced => true,
-            Self::NotEnforced => false,
-        }
-    }
-}
-
 impl<T> From<Error> for Outcome<T, Vec1<Error>> {
     fn from(error: Error) -> Self {
         Outcome::TotalFailure(Vec1::new(error))
@@ -149,7 +119,6 @@ pub struct ModuleAnalyzerConstructor<'a, A> {
     pub warnings: &'a TypeWarningEmitter,
     pub direct_dependencies: &'a HashMap<EcoString, A>,
     pub dev_dependencies: &'a HashSet<EcoString>,
-    pub target_support: TargetSupport,
     pub package_config: &'a PackageConfig,
 }
 
@@ -171,7 +140,6 @@ impl<A> ModuleAnalyzerConstructor<'_, A> {
             warnings: self.warnings,
             direct_dependencies: self.direct_dependencies,
             dev_dependencies: self.dev_dependencies,
-            target_support: self.target_support,
             package_config: self.package_config,
             line_numbers,
             src_path,
@@ -194,7 +162,6 @@ struct ModuleAnalyzer<'a, A> {
     warnings: &'a TypeWarningEmitter,
     direct_dependencies: &'a HashMap<EcoString, A>,
     dev_dependencies: &'a HashSet<EcoString>,
-    target_support: TargetSupport,
     package_config: &'a PackageConfig,
     line_numbers: LineNumbers,
     src_path: Utf8PathBuf,
@@ -227,7 +194,6 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             current_module: self.module_name.clone(),
             target: self.target,
             importable_modules: self.importable_modules,
-            target_support: self.target_support,
             current_origin: self.origin,
             dev_dependencies: self.dev_dependencies,
         }
@@ -546,10 +512,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
         } = f;
         let (name_location, name) = name.expect("Function in a definition must be named");
         let target = environment.target;
-        let body_location = body
-            .last()
-            .map(|statement| statement.location())
-            .unwrap_or(location);
+        let body_location = body.location().unwrap_or(location);
         let preregistered_fn = environment
             .get_variable(&name)
             .expect("Could not find preregistered type for function");
@@ -568,7 +531,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             target_function_implementation(target, &external_erlang, &external_javascript);
 
         // The function must have at least one implementation somewhere.
-        let has_implementation = self.ensure_function_has_an_implementation(
+        self.ensure_function_has_an_implementation(
             &body,
             &external_erlang,
             &external_javascript,
@@ -583,7 +546,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             self.ensure_annotations_present(&arguments, return_annotation.as_ref(), location);
         }
 
-        let has_body = !body.is_empty();
+        let has_body = !body.is_none();
         let definition = FunctionDefinition {
             has_body,
             has_erlang_external: external_erlang.is_some(),
@@ -625,16 +588,48 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
                 .remove(&name)
                 .expect("Could not find hydrator for fn");
 
-            let (arguments, body) = expr_typer.infer_fn_with_known_types(
-                Some(name.clone()),
-                typed_arguments.clone(),
-                body,
-                Some(prereg_return_type.clone()),
-            )?;
-            let arguments_types = arguments.iter().map(|a| a.type_.clone()).collect();
-            let return_type = body
-                .last()
-                .map_or(prereg_return_type.clone(), |last| last.type_());
+            let (type_, body) = match body {
+                FunctionBody::None => {
+                    expr_typer.implementations.gleam = false;
+                    expr_typer.check_function_arguments(Some(&name), &typed_arguments, false)?;
+                    let arguments_types = typed_arguments.iter().map(|a| a.type_.clone()).collect();
+                    let return_type = prereg_return_type.clone();
+                    let type_ = fn_(arguments_types, return_type);
+                    (type_, FunctionBody::None)
+                }
+                FunctionBody::SingleImplementation(body) => {
+                    let (arguments, body) = expr_typer.infer_fn_with_known_types(
+                        Some(name.clone()),
+                        typed_arguments.clone(),
+                        body.into_vec(),
+                        Some(prereg_return_type.clone()),
+                    )?;
+                    let arguments_types = arguments.iter().map(|a| a.type_.clone()).collect();
+                    let return_type = body
+                        .last()
+                        .map_or(prereg_return_type.clone(), |last| last.type_());
+                    let type_ = fn_(arguments_types, return_type);
+                    (
+                        type_,
+                        FunctionBody::SingleImplementation(body.try_into().unwrap()),
+                    )
+                }
+                FunctionBody::MultipleImplementations(implementations) => {
+                    let implementations = expr_typer.infer_function_implementations(
+                        name.clone(),
+                        typed_arguments.clone(),
+                        implementations,
+                        prereg_return_type.clone(),
+                    )?;
+                    let arguments_types = typed_arguments.iter().map(|a| a.type_.clone()).collect();
+                    let return_type = prereg_return_type.clone();
+                    let type_ = fn_(arguments_types, return_type);
+                    (
+                        type_,
+                        FunctionBody::MultipleImplementations(implementations.try_into().unwrap()),
+                    )
+                }
+            };
 
             // `dict.do_fold` is a bit special: since it belongs to the stdlib
             // it is considered pure by default.
@@ -684,7 +679,6 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
                 expr_typer.purity
             };
 
-            let type_ = fn_(arguments_types, return_type);
             Ok((
                 type_,
                 body,
@@ -705,14 +699,16 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             Err(error) => {
                 self.problems.error(error);
                 let type_ = preregistered_type.clone();
-                let body = vec![Statement::Expression(TypedExpr::Invalid {
-                    type_: prereg_return_type.clone(),
-                    location: SrcSpan {
-                        start: body_location.end,
-                        end: body_location.end,
+                let body = FunctionBody::SingleImplementation(vec1![Statement::Expression(
+                    TypedExpr::Invalid {
+                        type_: prereg_return_type.clone(),
+                        location: SrcSpan {
+                            start: body_location.end,
+                            end: body_location.end,
+                        },
+                        extra_information: None,
                     },
-                    extra_information: None,
-                })];
+                )]);
                 let implementations = Implementations::supporting_all();
                 (
                     type_,
@@ -723,6 +719,13 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
                 )
             }
         };
+
+        if implementations.supports_no_targets() {
+            self.problems.error(Error::FunctionSupportsNoTargets {
+                name: name.clone(),
+                location,
+            });
+        }
 
         if required_version > self.minimum_required_version {
             self.minimum_required_version = required_version;
@@ -749,27 +752,6 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
         // Assert that the inferred type matches the type of any recursive call
         if let Err(error) = unify(preregistered_type.clone(), type_) {
             self.problems.error(convert_unify_error(error, location));
-        }
-
-        // Ensure that the current target has an implementation for the function.
-        // This is done at the expression level while inferring the function body, but we do it again
-        // here as externally implemented functions may not have a Gleam body.
-        //
-        // We don't emit this error if there is no implementation, as this would
-        // have already emitted an error above.
-        if has_implementation
-            && publicity.is_importable()
-            && environment.target_support.is_enforced()
-            && !implementations.supports(target)
-            // We don't emit this error if there is a body
-            // since this would be caught at the statement level
-            && !has_body
-        {
-            self.problems.error(Error::UnsupportedPublicFunctionTarget {
-                name: name.clone(),
-                target,
-                location,
-            });
         }
 
         let variant = ValueConstructorVariant::ModuleFn {
@@ -898,17 +880,16 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
 
     fn ensure_function_has_an_implementation(
         &mut self,
-        body: &[UntypedStatement],
+        body: &UntypedFunctionBody,
         external_erlang: &Option<(EcoString, EcoString, SrcSpan)>,
         external_javascript: &Option<(EcoString, EcoString, SrcSpan)>,
         location: SrcSpan,
-    ) -> bool {
-        match (external_erlang, external_javascript) {
-            (None, None) if body.is_empty() => {
+    ) {
+        match (body, external_erlang, external_javascript) {
+            (FunctionBody::None, None, None) => {
                 self.problems.error(Error::NoImplementation { location });
-                false
             }
-            _ => true,
+            _ => {}
         }
     }
 

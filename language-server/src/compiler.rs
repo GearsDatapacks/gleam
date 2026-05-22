@@ -4,7 +4,6 @@ use itertools::Itertools;
 
 use gleam_core::{
     Error, Result, Warning,
-    analyse::TargetSupport,
     build::{self, Mode, Module, NullTelemetry, Outcome, ProjectCompiler},
     config::PackageConfig,
     io::{BeamCompiler, CommandExecutor, FileSystemReader, FileSystemWriter, Stdio},
@@ -70,7 +69,6 @@ where
             target: None,
             codegen: build::Codegen::None,
             compile: build::Compile::All,
-            root_target_support: TargetSupport::Enforced,
             no_print_progress: false,
         };
         let mut project_compiler = ProjectCompiler::new(
