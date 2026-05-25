@@ -17,13 +17,11 @@ pub fn main() {
 
 
 ----- ERROR
-error: Unsupported target
-  ┌─ /src/one/two.gleam:9:5
+error: Function supports no targets
+  ┌─ /src/one/two.gleam:8:1
   │
-9 │     javascript_only()
-  │     ^^^^^^^^^^^^^^^
+8 │ pub fn main() {
+  │ ^^^^^^^^^^^^^
 
-This value is not available as it is defined using externals, and there is
-no implementation for the Erlang target.
-
-Hint: Did you mean to build for a different target?
+The `main` function has calls to conflicting functions, meaning
+it cannot run on any target.
